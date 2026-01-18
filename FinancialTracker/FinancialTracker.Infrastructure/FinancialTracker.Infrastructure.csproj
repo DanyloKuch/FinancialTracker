@@ -11,4 +11,10 @@
     <ProjectReference Include="..\FinancialTracker.Domain\FinancialTracker.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Configurations\" />
+    <Folder Include="Entities\" />
+    <Folder Include="Repositories\" />
+  </ItemGroup>
+
 </Project>
