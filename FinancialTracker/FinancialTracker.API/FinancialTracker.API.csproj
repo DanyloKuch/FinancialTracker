@@ -17,15 +17,12 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Scalar.AspNetCore" Version="2.12.11" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\FinancialTracker.Application\FinancialTracker.Application.csproj" />
     <ProjectReference Include="..\FinancialTracker.Infrastructure\FinancialTracker.Infrastructure.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Controllers\" />
   </ItemGroup>
 
 </Project>

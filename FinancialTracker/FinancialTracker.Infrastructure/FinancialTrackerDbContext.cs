@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using FinancialTracker.Application.Interfaces;
 
 namespace FinancialTracker.Infrastructure
 {
