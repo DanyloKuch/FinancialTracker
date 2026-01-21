@@ -1,0 +1,90 @@
+﻿using FinancialTracker.Application.DTOs;
+using FinancialTracker.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace FinancialTracker.API.Controllers
+{
+    [ApiController]
+    [Route("api/v1/[controller]")] // Шлях буде: api/v1/wallets
+    [Authorize] // 🔒 Доступ тільки з токеном (для залогінених)
+    public class WalletsController : ControllerBase
+    {
+        private readonly IWalletService _walletService;
+
+        public WalletsController(IWalletService walletService)
+        {
+            _walletService = walletService;
+        }
+
+        // 1. Створити гаманець
+        // POST: api/v1/wallets
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] WalletRequest request)
+        {
+            var result = await _walletService.CreateWalletAsync(request);
+
+            if (result.IsFailure)
+            {
+                return BadRequest(result.Error); // 400 Bad Request
+            }
+
+            // Повертаємо 201 Created
+            return CreatedAtAction(nameof(GetById), new { id = result.Value }, result.Value);
+        }
+
+        // 2. Отримати всі мої гаманці
+        // GET: api/v1/wallets
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            var wallets = await _walletService.GetWalletsAsync();
+            return Ok(wallets); // 200 OK
+        }
+
+        // 3. Отримати один за ID
+        // GET: api/v1/wallets/{id}
+        [HttpGet("{id:guid}")]
+        public async Task<IActionResult> GetById(Guid id)
+        {
+            var result = await _walletService.GetWalletByIdAsync(id);
+
+            if (result.IsFailure)
+            {
+                return NotFound(result.Error); // 404 Not Found
+            }
+
+            return Ok(result.Value);
+        }
+
+        // 4. Оновити гаманець
+        // PUT: api/v1/wallets/{id}
+        [HttpPut("{id:guid}")]
+        public async Task<IActionResult> Update(Guid id, [FromBody] WalletRequest request)
+        {
+            var result = await _walletService.UpdateWalletAsync(id, request);
+
+            if (result.IsFailure)
+            {
+                return BadRequest(result.Error);
+            }
+
+            return NoContent(); // 204 No Content (успішно, без тіла відповіді)
+        }
+
+        // 5. Видалити гаманець
+        // DELETE: api/v1/wallets/{id}
+        [HttpDelete("{id:guid}")]
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            var result = await _walletService.DeleteWalletAsync(id);
+
+            if (result.IsFailure)
+            {
+                return BadRequest(result.Error);
+            }
+
+            return NoContent();
+        }
+    }
+}
