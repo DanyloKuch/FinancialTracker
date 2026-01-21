@@ -1,6 +1,9 @@
 using FinancialTracker.Application.Interfaces;
+using FinancialTracker.Application.Services;
+using FinancialTracker.Domain.Interfaces;
 using FinancialTracker.Infrastructure;
 using FinancialTracker.Infrastructure.Entities;
+using FinancialTracker.Infrastructure.Repositories;
 using FinancialTracker.Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +21,10 @@ builder.Services.AddIdentityApiEndpoints<UserEntity>()
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+// Реєстрація репозиторіїв
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+// Реєстрація сервісів Application шару
+builder.Services.AddScoped<ICategoryService, CategoryService>();
 
 builder.Services.AddControllers();
 
