@@ -19,7 +19,7 @@ namespace FinancialTracker.Infrastructure.Repositories
             _context = context;
         }
 
-        // 1. Створення
+        
         public async Task<Result<Guid>> AddAsync(Wallet wallet)
         {
             var entity = new WalletEntity
@@ -40,7 +40,7 @@ namespace FinancialTracker.Infrastructure.Repositories
             return Result<Guid>.Success(entity.Id);
         }
 
-        // 2. Отримання одного (з мапінгом у доменну модель)
+        
         public async Task<Result<Wallet>> GetByIdAsync(Guid walletId, Guid userId)
         {
             var entity = await _context.Wallets
@@ -62,7 +62,7 @@ namespace FinancialTracker.Infrastructure.Repositories
             );
         }
 
-        // 3. Отримання списку
+
         public async Task<IEnumerable<Wallet>> GetAllByUserIdAsync(Guid userId)
         {
             var entities = await _context.Wallets
@@ -94,7 +94,7 @@ namespace FinancialTracker.Infrastructure.Repositories
             return wallets;
         }
 
-        // 4. Оновлення
+   
         public async Task<Result> UpdateAsync(Wallet wallet)
         {
             var entity = await _context.Wallets
@@ -103,20 +103,18 @@ namespace FinancialTracker.Infrastructure.Repositories
             if (entity == null)
                 return Result.Failure("Wallet not found.");
 
-            // Переносимо дані з моделі в БД
+           
             entity.Name = wallet.Name;
             entity.Type = wallet.Type;
             entity.IsArchived = wallet.IsArchived;
             entity.UpdatedAt = wallet.UpdatedAt;
 
-            // Якщо бізнес-логіка дозволяє пряму зміну балансу через Update:
-            // entity.Balance = wallet.Balance; 
-
+           
             await _context.SaveChangesAsync();
             return Result.Success();
         }
 
-        // 5. Видалення
+        
         public async Task<Result> DeleteAsync(Guid walletId, Guid userId)
         {
             var entity = await _context.Wallets

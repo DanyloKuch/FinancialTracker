@@ -6,8 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace FinancialTracker.API.Controllers
 {
     [ApiController]
-    [Route("api/v1/[controller]")] // Шлях буде: api/v1/wallets
-    [Authorize] // 🔒 Доступ тільки з токеном (для залогінених)
+    [Route("api/v1/[controller]")] 
+    [Authorize] 
     public class WalletsController : ControllerBase
     {
         private readonly IWalletService _walletService;
@@ -26,10 +26,10 @@ namespace FinancialTracker.API.Controllers
 
             if (result.IsFailure)
             {
-                return BadRequest(result.Error); // 400 Bad Request
+                return BadRequest(result.Error);
             }
 
-            // Повертаємо 201 Created
+           
             return CreatedAtAction(nameof(GetById), new { id = result.Value }, result.Value);
         }
 
@@ -39,7 +39,7 @@ namespace FinancialTracker.API.Controllers
         public async Task<IActionResult> GetAll()
         {
             var wallets = await _walletService.GetWalletsAsync();
-            return Ok(wallets); // 200 OK
+            return Ok(wallets); 
         }
 
         // 3. Отримати один за ID
@@ -51,7 +51,7 @@ namespace FinancialTracker.API.Controllers
 
             if (result.IsFailure)
             {
-                return NotFound(result.Error); // 404 Not Found
+                return NotFound(result.Error); 
             }
 
             return Ok(result.Value);
@@ -69,7 +69,7 @@ namespace FinancialTracker.API.Controllers
                 return BadRequest(result.Error);
             }
 
-            return NoContent(); // 204 No Content (успішно, без тіла відповіді)
+            return Ok(result.Value); 
         }
 
         // 5. Видалити гаманець
