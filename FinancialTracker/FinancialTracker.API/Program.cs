@@ -1,6 +1,9 @@
 using FinancialTracker.Application.Interfaces;
+using FinancialTracker.Application.Services;
+using FinancialTracker.Domain.Interfaces;
 using FinancialTracker.Infrastructure;
 using FinancialTracker.Infrastructure.Entities;
+using FinancialTracker.Infrastructure.Repositories;
 using FinancialTracker.Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -8,8 +11,8 @@ using Microsoft.OpenApi.Models;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
+//Add services to the container 
 
-// Add services to the container.
 builder.Services.AddDbContext<FinancialTrackerDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -17,12 +20,13 @@ builder.Services.AddIdentityApiEndpoints<UserEntity>()
     .AddEntityFrameworkStores<FinancialTrackerDbContext>();
 
 builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IWalletRepository, WalletRepository>();
+builder.Services.AddScoped<IWalletService, WalletService>();
 
 builder.Services.AddControllers();
-
 builder.Services.AddEndpointsApiExplorer();
-
 
 builder.Services.AddOpenApi("v1", options =>
 {
@@ -35,7 +39,7 @@ builder.Services.AddOpenApi("v1", options =>
             Scheme = "bearer",
             BearerFormat = "JWT",
             In = ParameterLocation.Header,
-            Description = "¬вед≥ть JWT токен"
+            Description = "JWT Authorization header using the Bearer scheme."
         });
 
         document.SecurityRequirements.Add(new OpenApiSecurityRequirement
@@ -58,7 +62,6 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-
     app.MapScalarApiReference(options =>
     {
         options.WithTitle("Financial Tracker API");

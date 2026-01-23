@@ -1,0 +1,14 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\FinancialTracker",
+    "\\FinancialTracker\\FinancialTracker.API",
+    "\\FinancialTracker\\FinancialTracker.Application",
+    "\\FinancialTracker\\FinancialTracker.Application\\Interfaces",
+    "\\FinancialTracker\\FinancialTracker.Domain",
+    "\\FinancialTracker\\FinancialTracker.Infrastructure",
+    "\\FinancialTracker\\FinancialTracker.Infrastructure\\Entities"
+  ],
+  "SelectedNode": "\\FinancialTracker\\FinancialTracker.Application\\FinancialTracker.Application.csproj",
+  "PreviewInSolutionExplorer": false
+}
