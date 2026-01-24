@@ -1,0 +1,99 @@
+﻿using FinancialTracker.Domain.Models;
+using FinancialTracker.Domain.Shared;
+using Microsoft.EntityFrameworkCore;
+using FinancialTracker.Domain.Interfaces;
+using FinancialTracker.Infrastructure.Entities;
+
+namespace FinancialTracker.Infrastructure.Repositories
+{
+    public class TransactionRepository : ITransactionRepository
+    {
+        private readonly FinancialTrackerDbContext _context;
+
+        public TransactionRepository(FinancialTrackerDbContext ftcontext)
+        {
+            _context = ftcontext;
+        }
+
+        public async Task SaveChangesAsync()
+        {
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task <Result<Transaction>> GetById(Guid userId, Guid transactionId)
+        {
+            var result = await _context.Transactions
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == transactionId && t.UserId == userId);
+
+            if (result == null)
+                return Result<Transaction>.Failure("Transaction not found");
+
+            return Transaction.Create(
+                result.Id,
+                result.UserId,
+                result.WalletId,
+                result.TargetWalletId,
+                result.CategoryId,
+                result.GroupId,
+                result.Amount,
+                result.Type,
+                result.ExchangeRate,
+                result.Commission ?? 0,
+                result.Comment,
+                result.CreatedAt
+                );
+        }
+
+
+        public async Task<Result<IReadOnlyList<Transaction>>> GetAllTransactionByUser(Guid userId)
+        {
+            var transactionEntities = await _context.Transactions
+                .AsNoTracking()
+                .Where(t => t.UserId == userId)
+                .ToListAsync();
+
+            var transactions = transactionEntities
+                .Select(t => Transaction.Create(
+                    id: t.Id,
+                    userId: t.UserId,
+                    walletid: t.WalletId,
+                    targetWalletId: t.TargetWalletId, 
+                    categoryId: t.CategoryId,
+                    groupId: t.GroupId,
+                    amount: t.Amount,
+                    type: t.Type,
+                    exchangeRate: t.ExchangeRate,
+                    commission: t.Commission ?? 0m,
+                    comment: t.Comment ?? string.Empty,
+                    createdAt: t.CreatedAt)).Where(r => r.IsSuccess)
+                .Select(r => r.Value)
+                .ToList();
+
+            return Result<IReadOnlyList<Transaction>>.Success(transactions);
+        }
+
+        public async Task<Result<Guid>> Create(Transaction transaction)
+        {
+            var entity = new TransactionEntity
+            {
+                Id = transaction.Id,
+                UserId = transaction.UserId,
+                WalletId = transaction.WalletId,
+                TargetWalletId = transaction.TargetWalletId,
+                CategoryId = transaction.CategoryId,
+                GroupId = transaction.GroupId,
+                Amount = transaction.Amount,
+                Type = transaction.Type,
+                ExchangeRate = transaction.ExchangeRate,
+                Commission = transaction.Commission,
+                Comment = transaction.Comment,
+                CreatedAt = transaction.CreatedAt
+
+            };
+
+            await _context.Transactions.AddAsync(entity);
+            return Result<Guid>.Success(transaction.Id);
+        }
+    }
+}

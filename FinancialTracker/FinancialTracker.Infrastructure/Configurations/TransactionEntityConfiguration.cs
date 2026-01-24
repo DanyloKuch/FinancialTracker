@@ -19,7 +19,7 @@ namespace FinancialTracker.Infrastructure.Configurations
             builder.Property(t => t.ExchangeRate).HasPrecision(18, 4);
             builder.Property(t => t.Commission)
                 .HasPrecision(18, 2)
-                .HasDefaultValue(0);
+                .HasDefaultValue(0m);
 
             builder.Property(t => t.Type)
                 .HasConversion<string>()

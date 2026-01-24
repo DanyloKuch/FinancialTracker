@@ -2,7 +2,7 @@
 
 namespace FinancialTracker.Infrastructure.Entities
 {
-    public class TransactionEntity
+    public class    TransactionEntity
     {
         public Guid Id { get; set; }
         public Guid WalletId { get; set; }

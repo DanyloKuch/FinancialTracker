@@ -1,4 +1,5 @@
-﻿using FinancialTracker.Domain.Shared;
+﻿using FinancialTracker.Domain.Enums;
+using FinancialTracker.Domain.Shared;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -50,6 +51,24 @@ namespace FinancialTracker.Domain.Models
             var wallet = new Wallet(id, userId, name, type, balance, currencyCode, isArchived, updatedAt);
 
             return Result<Wallet>.Success(wallet);
+        }
+
+        public Result ApplyTransaction(decimal amount, TransactionType type, decimal commission)
+        {
+            decimal totalAmount = (type == TransactionType.Income)
+                ? amount - commission
+                : amount + commission;
+
+            if (type != TransactionType.Income && Balance < totalAmount)
+            {
+                return Result.Failure("Недостатньо коштів на гаманці.");
+            }
+
+            if (type == TransactionType.Income) Balance += totalAmount;
+            else Balance -= totalAmount;
+
+            UpdatedAt = DateTime.UtcNow;
+            return Result.Success();
         }
     }
 }

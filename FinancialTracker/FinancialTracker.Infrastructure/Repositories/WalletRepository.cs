@@ -19,7 +19,11 @@ namespace FinancialTracker.Infrastructure.Repositories
             _context = context;
         }
 
-        
+        public async Task SaveChangesAsync()
+        {
+            await _context.SaveChangesAsync();
+        }
+
         public async Task<Result<Guid>> AddAsync(Wallet wallet)
         {
             var entity = new WalletEntity
@@ -106,11 +110,11 @@ namespace FinancialTracker.Infrastructure.Repositories
            
             entity.Name = wallet.Name;
             entity.Type = wallet.Type;
+            entity.Balance = wallet.Balance;
             entity.IsArchived = wallet.IsArchived;
             entity.UpdatedAt = wallet.UpdatedAt;
+            entity.CurrencyCode = wallet.CurrencyCode;
 
-           
-            await _context.SaveChangesAsync();
             return Result.Success();
         }
 
