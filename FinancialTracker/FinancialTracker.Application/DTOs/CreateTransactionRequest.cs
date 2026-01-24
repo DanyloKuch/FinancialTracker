@@ -11,7 +11,6 @@ namespace FinancialTracker.Application.DTOs
         TransactionType Type, 
         decimal? ExchangeRate, 
         decimal Commission, 
-        string Comment, 
-        DateTime CreatedAt
+        string Comment 
         );
 }   
