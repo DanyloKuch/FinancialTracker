@@ -48,7 +48,6 @@ namespace FinancialTracker.Infrastructure.Repositories
         public async Task<Result<Wallet>> GetByIdAsync(Guid walletId, Guid userId)
         {
             var entity = await _context.Wallets
-                .AsNoTracking()
                 .FirstOrDefaultAsync(w => w.Id == walletId && w.UserId == userId);
 
             if (entity == null)
@@ -114,6 +113,7 @@ namespace FinancialTracker.Infrastructure.Repositories
             entity.IsArchived = wallet.IsArchived;
             entity.UpdatedAt = wallet.UpdatedAt;
             entity.CurrencyCode = wallet.CurrencyCode;
+            entity.UpdatedAt = wallet.UpdatedAt;
 
             return Result.Success();
         }

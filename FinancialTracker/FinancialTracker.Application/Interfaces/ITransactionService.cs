@@ -9,5 +9,7 @@ namespace FinancialTracker.Application.Services
         Task<Result<Guid>> CreateTransactionAsync(CreateTransactionRequest request);
         Task<Result<IReadOnlyList<Transaction>>> GetAllTransactionByUser();
         Task<Result<TransactionResponse>> GetTransactionById(Guid id);
+        Task<Result<TransactionResponse>> UpdateTransaction(Guid id, UpdateTransactionRequest request);
+        Task<Result> DeleteTransaction(Guid id);
     }
 }

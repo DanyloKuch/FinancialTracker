@@ -33,7 +33,7 @@ namespace FinancialTracker.Application.Services
         public async Task<Result<TransactionResponse>> GetTransactionById(Guid id)
         {
             var userId = _currentUserService.UserId;
-            var result = await _transactionRepository.GetById(id, userId);
+            var result = await _transactionRepository.GetById(userId, id);
 
             if (result.IsFailure)
                 return Result<TransactionResponse>.Failure(result.Error);
@@ -63,7 +63,6 @@ namespace FinancialTracker.Application.Services
 
             return request.Type switch
             {
-                // Змінено на повернення Result<Guid>
                 TransactionType.Transfer => await HandleTransferAsync(request, userId),
                 TransactionType.Income or TransactionType.Expense => await HandleSimpleTransactionAsync(request, userId),
                 _ => Result<Guid>.Failure("Невідомий тип транзакції")
@@ -96,13 +95,13 @@ namespace FinancialTracker.Application.Services
             if (!transaction.IsSuccess) return Result<Guid>.Failure(transaction.Error);
 
             var res = wallet.ApplyTransaction(request.Amount, request.Type, request.Commission);
-            if (res.IsFailure) return Result<Guid>.Failure(res.Error); // Каст до Result<Guid>
+            if (res.IsFailure) return Result<Guid>.Failure(res.Error); 
 
             await _transactionRepository.Create(transaction.Value);
             await _walletRepository.UpdateAsync(wallet);
             await _transactionRepository.SaveChangesAsync();
 
-            return Result<Guid>.Success(transaction.Value.Id); // Повертаємо Guid транзакції
+            return Result<Guid>.Success(transaction.Value.Id); 
         }
 
         private async Task<Result<Guid>> HandleTransferAsync(CreateTransactionRequest request, Guid userId)
@@ -142,11 +141,10 @@ namespace FinancialTracker.Application.Services
             if (transactionResult.IsFailure) return Result<Guid>.Failure(transactionResult.Error);
 
             var sourceRes = sourceWallet.ApplyTransaction(request.Amount, TransactionType.Transfer, request.Commission);
-            if (sourceRes.IsFailure) return Result<Guid>.Failure(sourceRes.Error); // Каст помилки
-
+            if (sourceRes.IsFailure) return Result<Guid>.Failure(sourceRes.Error); 
             var amountForTarget = request.Amount * (request.ExchangeRate ?? 1m);
             var targetRes = targetWallet.ApplyTransaction(amountForTarget, TransactionType.Income, 0);
-            if (targetRes.IsFailure) return Result<Guid>.Failure(targetRes.Error); // Каст помилки
+            if (targetRes.IsFailure) return Result<Guid>.Failure(targetRes.Error); 
 
             await _transactionRepository.Create(transactionResult.Value);
             await _walletRepository.UpdateAsync(sourceWallet);
@@ -154,7 +152,114 @@ namespace FinancialTracker.Application.Services
 
             await _transactionRepository.SaveChangesAsync();
 
-            return Result<Guid>.Success(transactionResult.Value.Id); // Повертаємо Guid
+            return Result<Guid>.Success(transactionResult.Value.Id); 
+        }
+
+        public async Task<Result> DeleteTransaction(Guid id)
+        {
+            var userId = _currentUserService.UserId;
+
+            var transactionRes = await _transactionRepository.GetById(id, userId);
+
+            if (transactionRes.IsFailure) return Result.Failure(transactionRes.Error);
+            var transaction = transactionRes.Value;
+
+            var walletRes = await _walletRepository.GetByIdAsync(transaction.WalletId, userId);
+            if (walletRes.IsFailure) return Result.Failure("Гаманець не знайдено");
+            var wallet = walletRes.Value;
+
+            wallet.UndoTransaction(transaction.Amount, transaction.Type, transaction.Commission ?? 0);
+
+            if (transaction.Type == TransactionType.Transfer && transaction.TargetWalletId.HasValue)
+            {
+                var targetWalletRes = await _walletRepository.GetByIdAsync(transaction.TargetWalletId.Value, userId);
+                if (targetWalletRes.IsSuccess)
+                {
+                    var amountForTarget = transaction.Amount * (transaction.ExchangeRate ?? 1m);
+                    targetWalletRes.Value.UndoTransaction(amountForTarget, TransactionType.Income, 0);
+                    await _walletRepository.UpdateAsync(targetWalletRes.Value);
+                }
+            }
+
+            var resultOfDelete = await _transactionRepository.Delete(userId, transaction.Id);
+            if (resultOfDelete.IsFailure) return Result.Failure(resultOfDelete.Error);
+
+                await _walletRepository.UpdateAsync(wallet);
+            await _transactionRepository.SaveChangesAsync();
+
+            return Result.Success();
+
+        }
+
+        public async Task<Result<TransactionResponse>> UpdateTransaction(Guid id, UpdateTransactionRequest request)
+        {
+            var userId = _currentUserService.UserId;
+
+            var transactionRes = await _transactionRepository.GetById(userId, id);
+            if (transactionRes.IsFailure) return Result<TransactionResponse>.Failure(transactionRes.Error);
+            var transaction = transactionRes.Value;
+
+            var walletRes = await _walletRepository.GetByIdAsync(transaction.WalletId, userId);
+            if (walletRes.IsFailure) return Result<TransactionResponse>.Failure("Гаманець не знайдено.");
+            var wallet = walletRes.Value;
+
+            wallet.UndoTransaction(transaction.Amount, transaction.Type, transaction.Commission ?? 0);
+
+            if (transaction.Type == TransactionType.Transfer && transaction.TargetWalletId.HasValue)
+            {
+                var targetWalletRes = await _walletRepository.GetByIdAsync(transaction.TargetWalletId.Value, userId);
+                if (targetWalletRes.IsSuccess)
+                {
+                    var targetWallet = targetWalletRes.Value;
+                    var oldTargetAmount = transaction.Amount * (transaction.ExchangeRate ?? 1m);
+
+                    targetWallet.UndoTransaction(oldTargetAmount, TransactionType.Income, 0);
+
+                    await _walletRepository.UpdateAsync(targetWallet);
+                }
+            }
+
+            transaction.Amount = request.Amount;
+            transaction.CategoryId = request.CategoryId;
+            transaction.Comment = request.Comment;
+            transaction.ExchangeRate = request.ExchangeRate;
+
+            wallet.ApplyTransaction(transaction.Amount, transaction.Type, transaction.Commission ?? 0);
+
+            if (transaction.Type == TransactionType.Transfer && transaction.TargetWalletId.HasValue)
+            {
+                var targetWalletRes = await _walletRepository.GetByIdAsync(transaction.TargetWalletId.Value, userId);
+                if (targetWalletRes.IsSuccess)
+                {
+                    var targetWallet = targetWalletRes.Value;
+                    var newTargetAmount = transaction.Amount * (transaction.ExchangeRate ?? 1m);
+
+                    targetWallet.ApplyTransaction(newTargetAmount, TransactionType.Income, 0);
+
+                    await _walletRepository.UpdateAsync(targetWallet);
+                }
+            }
+
+            await _walletRepository.UpdateAsync(wallet);
+            await _transactionRepository.UpdateAsync(transaction);
+
+            await _transactionRepository.SaveChangesAsync();
+
+            var response = new TransactionResponse(
+                transaction.Id,
+                transaction.WalletId,
+                transaction.TargetWalletId,
+                transaction.CategoryId,
+                transaction.GroupId,
+                transaction.Amount,
+                transaction.Type,
+                transaction.ExchangeRate,
+                transaction.Commission,
+                transaction.Comment,
+                transaction.CreatedAt
+            );
+
+            return Result<TransactionResponse>.Success(response);
         }
     }
 }

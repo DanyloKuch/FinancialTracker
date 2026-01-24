@@ -23,7 +23,6 @@ namespace FinancialTracker.Infrastructure.Repositories
         public async Task <Result<Transaction>> GetById(Guid userId, Guid transactionId)
         {
             var result = await _context.Transactions
-                .AsNoTracking()
                 .FirstOrDefaultAsync(t => t.Id == transactionId && t.UserId == userId);
 
             if (result == null)
@@ -94,6 +93,30 @@ namespace FinancialTracker.Infrastructure.Repositories
 
             await _context.Transactions.AddAsync(entity);
             return Result<Guid>.Success(transaction.Id);
+        }
+
+        public async Task<Result> Delete(Guid userId, Guid transactionId)
+        {
+            var entity = await _context.Transactions
+                .FirstOrDefaultAsync(t => t.Id == transactionId && t.UserId == userId);
+
+            if (entity == null)
+                return Result.Failure("Transaction not found.");
+
+            _context.Transactions.Remove(entity);
+            return Result.Success();
+        }
+
+        public async Task UpdateAsync(Transaction transaction)
+        {
+            var entity = await _context.Transactions.FirstOrDefaultAsync(t => t.Id == transaction.Id);
+            if (entity != null)
+            {
+                entity.Amount = transaction.Amount; 
+                entity.CategoryId = transaction.CategoryId;
+                entity.Comment = transaction.Comment;
+                entity.ExchangeRate = transaction.ExchangeRate;
+            }
         }
     }
 }
