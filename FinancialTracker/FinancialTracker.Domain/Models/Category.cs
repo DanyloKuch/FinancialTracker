@@ -6,16 +6,16 @@ namespace FinancialTracker.Domain.Models
         public Guid Id { get; private set; }
         public string Name { get; private set; } = null!;
         public Guid UserId { get; private set; }
+        public bool IsArchived { get; private set; }
 
-        // Приватний конструктор для EF Core та Фабричного методу
-        private Category(Guid id, string name, Guid userId)
+        private Category(Guid id, string name, Guid userId, bool isArchived)
         {
             Id = id;
             Name = name;
             UserId = userId;
+            IsArchived = isArchived;
         }
 
-        // Factory Method з валідацією
         public static Result<Category> Create(Guid id, string name, Guid userId)
         {
             if (string.IsNullOrWhiteSpace(name))
@@ -30,7 +30,12 @@ namespace FinancialTracker.Domain.Models
             if (userId == Guid.Empty)
                 return Result<Category>.Failure("User ID is invalid.");
 
-            return Result<Category>.Success(new Category(id, name, userId));
+            return Result<Category>.Success(new Category(id, name, userId, false));
+        }
+
+        public static Category Load(Guid id, string name, Guid userId, bool isArchived)
+        {
+            return new Category(id, name, userId, isArchived);
         }
 
         public void UpdateName(string newName)
@@ -39,6 +44,11 @@ namespace FinancialTracker.Domain.Models
                 throw new ArgumentException("Invalid name");
 
             Name = newName;
+        }
+
+        public void SetArchived(bool isArchived)
+        {
+            IsArchived = isArchived;
         }
     }
 }

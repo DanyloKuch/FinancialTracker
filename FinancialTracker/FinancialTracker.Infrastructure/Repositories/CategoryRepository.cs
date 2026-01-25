@@ -14,22 +14,16 @@ namespace FinancialTracker.Infrastructure.Repositories
             _context = context;
         }
 
-        // Mapping (Read): Entity -> Domain Model
         private Category MapToDomain(CategoryEntity entity)
         {
-            // Використовуємо фабричний метод або рефлексію, якщо фабрика занадто сувора для читання з БД.
-            // Тут припустимо, що дані в БД валідні.
-            var result = Category.Create(entity.Id, entity.Name, entity.UserId);
-            // У реальному проекті для відновлення з БД часто використовують окремий конструктор або AutoMapper,
-            // щоб уникнути повторної бізнес-валідації. Але тут використаємо Create.
-            return result.Value!;
+            return Category.Load(entity.Id, entity.Name, entity.UserId, entity.IsArchived);
         }
 
         public async Task<Category?> GetByIdAsync(Guid categoryId, Guid userId)
         {
             var entity = await _context.Categories
-                .AsNoTracking() // Optimization
-                .FirstOrDefaultAsync(c => c.Id == categoryId && c.UserId == userId); // Secure Querying
+                .AsNoTracking() 
+                .FirstOrDefaultAsync(c => c.Id == categoryId && c.UserId == userId); 
 
             return entity == null ? null : MapToDomain(entity);
         }
@@ -46,13 +40,12 @@ namespace FinancialTracker.Infrastructure.Repositories
 
         public async Task AddAsync(Category category)
         {
-            // Mapping (Write): Domain -> Entity
             var entity = new CategoryEntity
             {
                 Id = category.Id,
                 Name = category.Name,
                 UserId = category.UserId,
-                IsArchived = false
+                IsArchived = category.IsArchived
             };
 
             await _context.Categories.AddAsync(entity);
@@ -61,13 +54,13 @@ namespace FinancialTracker.Infrastructure.Repositories
 
         public async Task UpdateAsync(Category category)
         {
-            // Mapping (Write): Update existing entity
             var entity = await _context.Categories
                 .FirstOrDefaultAsync(c => c.Id == category.Id && c.UserId == category.UserId);
 
             if (entity != null)
             {
                 entity.Name = category.Name;
+                entity.IsArchived = category.IsArchived;
                 _context.Categories.Update(entity);
                 await _context.SaveChangesAsync();
             }
@@ -75,7 +68,6 @@ namespace FinancialTracker.Infrastructure.Repositories
 
         public async Task DeleteAsync(Guid categoryId, Guid userId)
         {
-            // Secure Querying for delete
             var entity = await _context.Categories
                 .FirstOrDefaultAsync(c => c.Id == categoryId && c.UserId == userId);
 

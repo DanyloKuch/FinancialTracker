@@ -12,7 +12,6 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddDbContext<FinancialTrackerDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -21,9 +20,7 @@ builder.Services.AddIdentityApiEndpoints<UserEntity>()
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
-// Реєстрація репозиторіїв
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
-// Реєстрація сервісів Application шару
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 
 builder.Services.AddControllers();

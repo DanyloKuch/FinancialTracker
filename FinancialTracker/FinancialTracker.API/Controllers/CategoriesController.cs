@@ -7,7 +7,7 @@ namespace FinancialTracker.API.Controllers
 {
     [ApiController]
     [Route("api/v1/categories")]
-    [Authorize] // Всі методи потребують авторизації
+    [Authorize]
     public class CategoriesController : ControllerBase
     {
         private readonly ICategoryService _categoryService;
@@ -54,7 +54,7 @@ namespace FinancialTracker.API.Controllers
             if (!result.IsSuccess)
                 return NotFound(new { message = result.Error });
 
-            return Ok();
+            return Ok(result.Value);
         }
 
         [HttpDelete("{id}")]
