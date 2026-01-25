@@ -19,7 +19,11 @@ namespace FinancialTracker.Infrastructure.Repositories
             _context = context;
         }
 
-        
+        public async Task SaveChangesAsync()
+        {
+            await _context.SaveChangesAsync();
+        }
+
         public async Task<Result<Guid>> AddAsync(Wallet wallet)
         {
             var entity = new WalletEntity
@@ -44,7 +48,6 @@ namespace FinancialTracker.Infrastructure.Repositories
         public async Task<Result<Wallet>> GetByIdAsync(Guid walletId, Guid userId)
         {
             var entity = await _context.Wallets
-                .AsNoTracking()
                 .FirstOrDefaultAsync(w => w.Id == walletId && w.UserId == userId);
 
             if (entity == null)
@@ -106,11 +109,12 @@ namespace FinancialTracker.Infrastructure.Repositories
            
             entity.Name = wallet.Name;
             entity.Type = wallet.Type;
+            entity.Balance = wallet.Balance;
             entity.IsArchived = wallet.IsArchived;
             entity.UpdatedAt = wallet.UpdatedAt;
+            entity.CurrencyCode = wallet.CurrencyCode;
+            entity.UpdatedAt = wallet.UpdatedAt;
 
-           
-            await _context.SaveChangesAsync();
             return Result.Success();
         }
 

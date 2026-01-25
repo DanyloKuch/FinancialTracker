@@ -1,4 +1,5 @@
-﻿using FinancialTracker.Domain.Shared;
+﻿using FinancialTracker.Domain.Enums;
+using FinancialTracker.Domain.Shared;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -50,6 +51,39 @@ namespace FinancialTracker.Domain.Models
             var wallet = new Wallet(id, userId, name, type, balance, currencyCode, isArchived, updatedAt);
 
             return Result<Wallet>.Success(wallet);
+        }
+
+        // Винесемо розрахунок чистої суми в окремий приватний метод для точності
+        private decimal CalculateTotalAmount(decimal amount, TransactionType type, decimal commission)
+        {
+            return (type == TransactionType.Income)
+                ? amount - commission  // При оренді/зарплаті ми отримуємо суму мінус комісія банку
+                : amount + commission; // При купівлі ми витрачаємо суму плюс комісія
+        }
+
+        public Result ApplyTransaction(decimal amount, TransactionType type, decimal commission)
+        {
+            decimal total = CalculateTotalAmount(amount, type, commission);
+
+            if (type != TransactionType.Income && Balance < total)
+                return Result.Failure("Недостатньо коштів.");
+
+            if (type == TransactionType.Income) Balance += total;
+            else Balance -= total;
+
+            UpdatedAt = DateTime.UtcNow;
+            return Result.Success();
+        }
+
+        public Result UndoTransaction(decimal amount, TransactionType type, decimal commission)
+        {
+            decimal total = CalculateTotalAmount(amount, type, commission);
+
+            // ДІЯ ПОВНІСТЮ ПРОТИЛЕЖНА ApplyTransaction
+            if (type == TransactionType.Income) Balance -= total;
+            else Balance += total;
+
+            return Result.Success();
         }
     }
 }

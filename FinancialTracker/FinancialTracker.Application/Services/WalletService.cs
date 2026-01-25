@@ -121,7 +121,7 @@ namespace FinancialTracker.Application.Services
           
             if (dbResult.IsFailure)
                 return Result<WalletResponse>.Failure(dbResult.Error);
-
+            await _walletRepository.SaveChangesAsync();
             
             var response = new WalletResponse(
                 updatedWallet.Id,

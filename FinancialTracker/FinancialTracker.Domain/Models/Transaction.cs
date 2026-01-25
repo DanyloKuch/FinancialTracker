@@ -1,4 +1,5 @@
 ﻿using FinancialTracker.Domain.Enums;
+using FinancialTracker.Domain.Shared;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,13 +12,25 @@ namespace FinancialTracker.Domain.Models
     {
 
         private Transaction(Guid id, Guid walletid, Guid? targetWalletId, Guid userId, Guid categoryId, Guid? groupId, 
-            decimal amount, TransactionType type, decimal exchangeRate, decimal commission, string comment, DateTime createdAt)
+            decimal amount, TransactionType type, decimal? exchangeRate, decimal? commission, string? comment, DateTime createdAt)
         {
+            Id = id;
+            UserId = userId;
+            WalletId = walletid;
+            TargetWalletId = targetWalletId;
+            CategoryId = categoryId;
+            GroupId = groupId;
+            Amount = amount;
+            Type = type;
+            ExchangeRate = exchangeRate;
+            Commission = commission;
+            Comment = comment;
+            CreatedAt = createdAt;
         }
         public Guid Id { get; set; }
+        public Guid UserId { get; set; }
         public Guid WalletId { get; set; }
         public Guid? TargetWalletId { get; set; }
-        public Guid UserId { get; set; }
         public Guid CategoryId { get; set; }
         public Guid? GroupId { get; set; }
         public decimal Amount { get; set; }
@@ -26,5 +39,37 @@ namespace FinancialTracker.Domain.Models
         public decimal? Commission { get; set; }
         public string? Comment { get; set; }
         public DateTime CreatedAt { get; set; }
+
+        public static Result<Transaction> Create(Guid id, Guid userId, Guid walletid, Guid? targetWalletId, Guid categoryId, Guid? groupId,
+            decimal amount, TransactionType type, decimal? exchangeRate, decimal commission, string comment, DateTime createdAt)
+        {
+            if (amount <= 0)
+                return Result<Transaction>.Failure("Amount must be greater than zero.");
+            if (userId == Guid.Empty)
+                return Result<Transaction>.Failure("UserId is required.");  
+            if (walletid == Guid.Empty)
+                return Result<Transaction>.Failure("WalletId is required.");
+            if (categoryId == Guid.Empty)
+                return Result<Transaction>.Failure("CategoryId is required.");
+            if (type != TransactionType.Transfer && targetWalletId != null)
+            {
+                return Result<Transaction>.Failure("Target wallet cannot be set for Income or Expense.");
+            }
+
+            if (type == TransactionType.Transfer && targetWalletId == null)
+            {
+                return Result<Transaction>.Failure("Target wallet is required for transfers.");
+            }
+
+            if (type == TransactionType.Transfer && walletid == targetWalletId)
+            {
+                return Result<Transaction>.Failure("Source and target wallets must be different.");
+            }
+
+
+            var transaction = new Transaction(id, walletid, targetWalletId, userId, categoryId, groupId,
+                amount, type, exchangeRate, commission, comment, createdAt);
+            return Result<Transaction>.Success(transaction);
+        }
     }
 }
