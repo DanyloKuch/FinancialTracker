@@ -1,6 +1,6 @@
 ﻿using FinancialTracker.Application.DTOs;
 using FinancialTracker.Domain.Models;
-
+using FinancialTracker.Domain.Shared;
 namespace FinancialTracker.Application.Interfaces
 {
     public interface ICategoryService

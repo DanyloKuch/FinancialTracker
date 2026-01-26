@@ -33,8 +33,7 @@ namespace FinancialTracker.API.Controllers
             return CreatedAtAction(nameof(GetById), new { id = result.Value }, result.Value);
         }
 
-        // 2. Отримати всі мої гаманці
-        // GET: api/v1/wallets
+        
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -42,8 +41,7 @@ namespace FinancialTracker.API.Controllers
             return Ok(wallets); 
         }
 
-        // 3. Отримати один за ID
-        // GET: api/v1/wallets/{id}
+      
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id)
         {
@@ -57,8 +55,7 @@ namespace FinancialTracker.API.Controllers
             return Ok(result.Value);
         }
 
-        // 4. Оновити гаманець
-        // PUT: api/v1/wallets/{id}
+      
         [HttpPut("{id:guid}")]
         public async Task<IActionResult> Update(Guid id, [FromBody] WalletRequest request)
         {
