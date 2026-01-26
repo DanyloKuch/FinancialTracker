@@ -57,7 +57,18 @@ namespace FinancialTracker.API.Controllers
             return Ok(result.Value);
         }
 
+        [HttpPut("{id:guid}")]
+        public async Task<IActionResult> UpdateGroup(Guid id, [FromBody] GroupRequest request)
+        {
+            var result = await _groupService.UpdateGroupAsync(id, request);
 
+            if (result.IsFailure)
+            {
+                return BadRequest(result.Error);
+            }
+
+            return Ok(result.Value);
+        }
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> DeleteOrLeaveGroup(Guid id)
         {
