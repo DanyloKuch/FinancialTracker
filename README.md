@@ -1,2 +1,2 @@
-# FinancialTracker
+# FinancialCracker
 SoftSorve team project
