@@ -53,12 +53,12 @@ namespace FinancialTracker.Domain.Models
             return Result<Wallet>.Success(wallet);
         }
 
-        // Винесемо розрахунок чистої суми в окремий приватний метод для точності
+      
         private decimal CalculateTotalAmount(decimal amount, TransactionType type, decimal commission)
         {
             return (type == TransactionType.Income)
-                ? amount - commission  // При оренді/зарплаті ми отримуємо суму мінус комісія банку
-                : amount + commission; // При купівлі ми витрачаємо суму плюс комісія
+                ? amount - commission  
+                : amount + commission; 
         }
 
         public Result ApplyTransaction(decimal amount, TransactionType type, decimal commission)
@@ -79,7 +79,7 @@ namespace FinancialTracker.Domain.Models
         {
             decimal total = CalculateTotalAmount(amount, type, commission);
 
-            // ДІЯ ПОВНІСТЮ ПРОТИЛЕЖНА ApplyTransaction
+         
             if (type == TransactionType.Income) Balance -= total;
             else Balance += total;
 

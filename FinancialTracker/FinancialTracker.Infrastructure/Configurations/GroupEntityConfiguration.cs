@@ -21,6 +21,8 @@ namespace FinancialTracker.Infrastructure.Configurations
             
             builder.Property(g => g.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
 
+            builder.Property(g => g.TotalLimit)
+                .HasPrecision(18, 2);
 
 
             builder.HasOne(g => g.Owner)
