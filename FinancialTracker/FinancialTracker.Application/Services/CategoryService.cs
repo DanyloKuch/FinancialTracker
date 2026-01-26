@@ -2,7 +2,7 @@
 using FinancialTracker.Application.Interfaces;
 using FinancialTracker.Domain.Interfaces;
 using FinancialTracker.Domain.Models;
-
+using FinancialTracker.Domain.Shared;
 namespace FinancialTracker.Application.Services
 {
     public class CategoryService : ICategoryService

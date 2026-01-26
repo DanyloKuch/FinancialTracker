@@ -1,4 +1,4 @@
-﻿
+﻿using FinancialTracker.Domain.Shared;
 namespace FinancialTracker.Domain.Models
 {
     public class Category
