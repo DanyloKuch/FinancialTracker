@@ -53,7 +53,6 @@ namespace FinancialTracker.Domain.Models
             return Result<Wallet>.Success(wallet);
         }
 
-      
         private decimal CalculateTotalAmount(decimal amount, TransactionType type, decimal commission)
         {
             return (type == TransactionType.Income)
