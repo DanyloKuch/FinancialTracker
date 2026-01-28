@@ -13,5 +13,6 @@ namespace FinancialTracker.Application.Interfaces
         Task<Result<IReadOnlyList<GroupResponse>>> GetAllUserGroupsAsync();
         Task<Result<Guid>> AddMemberInternalAsync(Guid groupId, Guid userId, GroupRole role);
         Task<Result> DeleteOrLeaveGroupAsync(Guid groupId);
+        Task<Result<GroupResponse>> UpdateGroupAsync(Guid groupId, GroupRequest request);
     }
 }

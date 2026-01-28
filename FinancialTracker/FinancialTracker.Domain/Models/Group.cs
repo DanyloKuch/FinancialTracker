@@ -4,12 +4,12 @@ namespace FinancialTracker.Domain.Models
 {
     public class Group
     {
-        public Guid Id { get; }
-        public Guid OwnerId { get; }
-        public string Name { get; private set; }
-        public string BaseCurrency { get; }
-        public decimal? TotalLimit { get; private set; }
-        public DateTime CreatedAt { get; }
+        public Guid Id { get; set; }
+        public string Name { get; set; }
+        public decimal? TotalLimit { get; set; }
+        public string BaseCurrency { get; set; }
+        public Guid OwnerId { get; set; }
+        public DateTime CreatedAt { get; set; }
 
         private readonly List<GroupMember> _members;
         public IReadOnlyList<GroupMember> Members => _members.AsReadOnly();

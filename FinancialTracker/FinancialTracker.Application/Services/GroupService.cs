@@ -158,5 +158,49 @@ namespace FinancialTracker.Application.Services
                 return await _groupRepository.RemoveMemberAsync(groupId, userId);
             }
         }
+        public async Task<Result<GroupResponse>> UpdateGroupAsync(Guid groupId, GroupRequest request)
+        {
+            var userId = _currentUserService.UserId;
+
+           
+            var groupResult = await _groupRepository.GetByIdAsync(groupId, userId);
+
+            if (groupResult.IsFailure)
+                return Result<GroupResponse>.Failure(groupResult.Error);
+
+            var group = groupResult.Value;
+
+            
+            if (group.OwnerId != userId)
+                return Result<GroupResponse>.Failure("Access denied. Only owner can update group.");
+
+           
+            if (string.IsNullOrWhiteSpace(request.Name))
+                return Result<GroupResponse>.Failure("Name cannot be empty");
+
+            if (request.TotalLimit < 0)
+                return Result<GroupResponse>.Failure("Limit cannot be negative");
+
+          
+            group.Name = request.Name;
+            group.TotalLimit = request.TotalLimit;
+          
+            await _groupRepository.UpdateAsync(group);
+
+  
+            var membersDto = group.Members.Select(m => new GroupMemberResponse(
+                m.Id, m.UserId, m.Role, m.JoinedAt
+            )).ToList();
+
+            return Result<GroupResponse>.Success(new GroupResponse(
+                group.Id,
+                group.Name,
+                group.OwnerId,
+                group.BaseCurrency,
+                group.TotalLimit,
+                membersDto,
+                group.CreatedAt
+            ));
+        }
     }
 }
