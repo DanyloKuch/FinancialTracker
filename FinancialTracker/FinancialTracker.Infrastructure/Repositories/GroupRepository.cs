@@ -140,5 +140,20 @@ namespace FinancialTracker.Infrastructure.Repositories
                 members
             ).Value;
         }
+        public async Task<Result> UpdateAsync(Group group)
+        {
+            var entity = await _context.Groups.FirstOrDefaultAsync(g => g.Id == group.Id);
+
+            if (entity == null)
+                return Result.Failure("Group not found in DB.");
+
+         
+            entity.Name = group.Name;
+            entity.TotalLimit = group.TotalLimit;
+
+
+            await _context.SaveChangesAsync();
+            return Result.Success();
+        }
     }
 }
