@@ -12,5 +12,6 @@ namespace FinancialTracker.Domain.Interfaces
         Task<Result> RemoveMemberAsync(Guid groupId, Guid userId);
         Task<Result<Guid>> AddMemberAsync(GroupMember member);
         Task<bool> ExistsAsync(Guid groupId);
+        Task<Result> UpdateAsync(Group group);
     }
 }
