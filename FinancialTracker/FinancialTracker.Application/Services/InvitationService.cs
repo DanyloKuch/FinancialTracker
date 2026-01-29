@@ -1,0 +1,92 @@
+﻿using FinancialTracker.Application.DTOs;
+using FinancialTracker.Application.Interfaces;
+using FinancialTracker.Domain.Interfaces;
+using FinancialTracker.Domain.Models;
+using FinancialTracker.Domain.Shared;
+using FinancialTracker.Domain.Enums;
+
+namespace FinancialTracker.Application.Services
+{
+    public class InvitationService : IInvitationService
+    {
+        private readonly IInvitationRepository _invitationRepository;
+        private readonly IGroupRepository _groupRepository; 
+        private readonly ICurrentUserService _currentUserService;
+        private readonly IUserRepository _userRepository;
+
+        public InvitationService(
+            IInvitationRepository invitationRepository,
+            IGroupRepository groupRepository,
+            ICurrentUserService currentUserService,
+            IUserRepository userRepository)
+        {
+            _invitationRepository = invitationRepository;
+            _groupRepository = groupRepository;
+            _currentUserService = currentUserService;
+            _userRepository = userRepository;
+        }
+
+        public async Task<Result<Guid>> InviteUserAsync(InviteUserRequest request)
+        {
+            var groupResult = await _groupRepository.GetByIdAsync(request.GroupId, _currentUserService.UserId);
+
+            if (!groupResult.IsSuccess)
+                return Result<Guid>.Failure("Group not found or you don't have access.");
+
+            var group = groupResult.Value!;
+
+            var inviteeId = await _userRepository.GetUserIdByEmailAsync(request.Email);
+
+            if (inviteeId.HasValue)
+            {
+                if (group.Members.Any(m => m.UserId == inviteeId.Value))
+                    return Result<Guid>.Failure("User is already a member.");
+            }
+
+            var invitationResult = Invitation.Create(request.GroupId, _currentUserService.UserId, request.Email);
+            if (!invitationResult.IsSuccess) return Result<Guid>.Failure(invitationResult.Error!);
+
+            await _invitationRepository.AddAsync(invitationResult.Value!);
+            return Result<Guid>.Success(invitationResult.Value!.Id);
+        }
+
+        public async Task<Result> AcceptInvitationAsync(Guid invitationId)
+        {
+            var invitation = await _invitationRepository.GetByIdAsync(invitationId);
+            if (invitation == null) return Result.Failure("Invitation not found.");
+
+            var currentUserEmail = await _userRepository.GetUserEmailByIdAsync(_currentUserService.UserId);
+
+            if (invitation.InviteeEmail != currentUserEmail)
+                return Result.Failure("Access denied.");
+
+            var acceptResult = invitation.Accept();
+            if (!acceptResult.IsSuccess) return acceptResult;
+
+            var newMemberResult = GroupMember.Create(
+                Guid.NewGuid(),
+                invitation.GroupId,
+                _currentUserService.UserId,
+                GroupRole.Member,
+                DateTime.UtcNow);
+
+            if (!newMemberResult.IsSuccess)
+                return Result.Failure(newMemberResult.Error!);
+
+            await _groupRepository.AddMemberAsync(newMemberResult.Value!);
+
+            await _invitationRepository.UpdateAsync(invitation);
+
+            return Result.Success();
+        }
+
+        public async Task<List<InvitationResponse>> GetMyPendingInvitationsAsync()
+        {
+            var email = await _userRepository.GetUserEmailByIdAsync(_currentUserService.UserId);
+            if (string.IsNullOrEmpty(email)) return new List<InvitationResponse>();
+
+            var invitations = await _invitationRepository.GetPendingByEmailAsync(email);
+            return invitations.Select(i => new InvitationResponse(i.Id, i.GroupId, i.InviterId.ToString(), i.Status.ToString())).ToList();
+        }
+    }
+}
