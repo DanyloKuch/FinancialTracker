@@ -8,6 +8,7 @@
         public string BaseCurrency { get; set; } = "UAH";
         public DateTime CreatedAt { get; set; }
 
+        public decimal? TotalLimit { get; set; }
         public UserEntity Owner { get; set; } = null!;
         public ICollection<GroupMemberEntity> Members { get; set; } = new List<GroupMemberEntity>();
         public ICollection<InvitationEntity> Invitations { get; set; } = new List<InvitationEntity>();
