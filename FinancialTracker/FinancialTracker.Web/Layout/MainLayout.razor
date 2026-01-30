@@ -1,0 +1,48 @@
+﻿@using Blazored.LocalStorage
+@using FinancialTracker.Web.Providers
+@using Microsoft.AspNetCore.Components.Authorization
+@inherits LayoutComponentBase
+@inject ILocalStorageService LocalStorage
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavManager
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudPopoverProvider /> @* КРИТИЧНО: Додано для роботи випадних списків (MudSelect) *@
+
+<MudLayout>
+    <MudAppBar Elevation="1" Style="background-color: #2A2929;">
+        <MudText Typo="Typo.h5" Class="ml-3">My Finance Tracker</MudText>
+
+        <MudSpacer />
+
+        <AuthorizeView>
+            <Authorized>
+                <MudText Typo="Typo.body2" Class="mr-4">@context.User.Identity?.Name</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Inherit" OnClick="Logout">Вийти</MudButton>
+            </Authorized>
+            <NotAuthorized>
+                <MudButton Variant="Variant.Text" Color="Color.Inherit" href="/login">Увійти</MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudAppBar>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="my-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private async Task Logout()
+    {
+        await LocalStorage.RemoveItemAsync("authToken");
+        if (AuthStateProvider is JwtAuthenticationStateProvider jwtProvider)
+        {
+            jwtProvider.NotifyUserLogout();
+        }
+        NavManager.NavigateTo("/login");
+    }
+}

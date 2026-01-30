@@ -13,6 +13,16 @@ using Scalar.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 //Add services to the container 
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("BlazorPolicy", policy =>
+    {
+        policy.WithOrigins("https://localhost:7066")
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 builder.Services.AddDbContext<FinancialTrackerDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -72,6 +82,8 @@ if (app.Environment.IsDevelopment())
         options.WithOpenApiRoutePattern("/openapi/v1.json");
     });
 }
+
+app.UseCors("BlazorPolicy");
 
 app.UseHttpsRedirection();
 

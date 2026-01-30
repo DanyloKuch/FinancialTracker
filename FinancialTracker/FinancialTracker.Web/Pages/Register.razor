@@ -1,0 +1,158 @@
+﻿@page "/register"
+@using Microsoft.AspNetCore.Authorization
+@inject HttpClient Http
+@inject NavigationManager NavManager
+@inject ISnackbar Snackbar
+@attribute [AllowAnonymous]
+
+<style>
+    /* 1. Фон всієї сторінки */
+    body {
+        background-color: #2A2929 !important;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+    }
+
+    /* 2. Стиль полів (Outline, Колір, Закруглення) */
+    .custom-input {
+        background-color: transparent !important;
+    }
+
+        .custom-input .mud-input-outlined-border {
+            border-color: #D9D9D9 !important; /* Колір рамки як на фото */
+            border-width: 1px !important;
+            border-radius: 12px !important; /* Більш плавне закруглення */
+        }
+
+        /* Колір тексту всередині */
+        .custom-input input {
+            color: #D9D9D9 !important;
+            padding: 12px 16px !important;
+        }
+
+        /* Колір тексту лейбла (Placeholder) */
+        .custom-input .mud-input-label {
+            color: #888888 !important;
+        }
+
+        /* При фокусі */
+        .custom-input .mud-input-outlined.mud-input-focused .mud-input-outlined-border {
+            border-color: #CE93D8 !important; /* Світло-фіолетовий при натисканні */
+        }
+
+    /* 3. Градієнтна кнопка */
+    .btn-gradient {
+        background: linear-gradient(90deg, #CE93D8 0%, #7B1FA2 100%) !important;
+        color: white !important;
+        border-radius: 25px !important;
+        text-transform: none !important;
+        font-weight: bold !important;
+        height: 50px !important;
+        box-shadow: 0px 4px 15px rgba(123, 31, 162, 0.3) !important;
+    }
+
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus,
+    input:-webkit-autofill:active {
+        /* Замінюємо колір фону на твій #434343 (або прозорий) за допомогою внутрішньої тіні */
+        -webkit-box-shadow: 0 0 0 1000px #434343 inset !important;
+        /* Колір тексту при автозаповненні */
+        -webkit-text-fill-color: #D9D9D9 !important;
+        /* Перехід для кольору, щоб не блимало при завантаженні */
+        transition: background-color 5000s ease-in-out 0s;
+    }
+
+    /* Прибираємо стандартну рамку MudBlazor, яка може з'являтися поверх автозаповнення */
+    .custom-input .mud-input-slot {
+        background-color: transparent !important;
+    }
+</style>
+
+<MudContainer MaxWidth="MaxWidth.Small">
+    <MudPaper Elevation="0"
+              Class="pa-10"
+              Style="background-color: #434343; border-radius: 16px; width: 100%; max-width: 400px;">
+
+        <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-8"
+                 Style="color: white; font-weight: 700; letter-spacing: 0.5px;">
+            Реєстрація
+        </MudText>
+
+        <MudTextField @bind-Value="_model.Email"
+                      Placeholder="Email"
+                      Variant="Variant.Outlined"
+                      Class="custom-input mb-4" />
+
+        <MudTextField @bind-Value="_model.Password"
+                      Placeholder="Пароль"
+                      Variant="Variant.Outlined"
+                      InputType="@_passwordInput"
+                      Class="custom-input mb-4"
+                      Adornment="Adornment.End"
+                      AdornmentIcon="@_passwordInputIcon"
+                      OnAdornmentClick="TogglePasswordVisibility"
+                      AdornmentColor="Color.Inherit" />
+
+        <MudTextField @bind-Value="_model.ConfirmPassword"
+                      Placeholder="Підтвердіть пароль"
+                      Variant="Variant.Outlined"
+                      InputType="InputType.Password"
+                      Class="custom-input mb-8" />
+
+        <MudButton Variant="Variant.Filled"
+                   FullWidth="true"
+                   OnClick="HandleRegister"
+                   Class="btn-gradient">
+            Зареєструватися
+        </MudButton>
+
+        <MudLink Href="/login"
+                 Underline="Underline.None"
+                 Class="d-block mt-6 text-center"
+                 Style="color: #D9D9D9; font-size: 0.9rem;">
+            Вже маєте акаунт? <span style="color: #7B1FA2; font-weight: bold;">Увійдіть</span>
+        </MudLink>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private RegisterRequest _model = new();
+    private bool _showPassword;
+    private InputType _passwordInput = InputType.Password;
+    private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    private void TogglePasswordVisibility() => (_showPassword, _passwordInput, _passwordInputIcon) =
+        _showPassword ? (false, InputType.Password, Icons.Material.Filled.VisibilityOff)
+                     : (true, InputType.Text, Icons.Material.Filled.Visibility);
+
+    private async Task HandleRegister()
+    {
+        if (_model.Password != _model.ConfirmPassword)
+        {
+            Snackbar.Add("Паролі не збігаються", Severity.Error);
+            return;
+        }
+
+        var response = await Http.PostAsJsonAsync("api/v1/auth/register", new { _model.Email, _model.Password });
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Успішно зареєстровано!", Severity.Success);
+            NavManager.NavigateTo("/login");
+        }
+        else
+        {
+            Snackbar.Add("Помилка реєстрації", Severity.Error);
+        }
+    }
+
+    public class RegisterRequest
+    {
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
+        public string ConfirmPassword { get; set; } = "";
+    }
+}
