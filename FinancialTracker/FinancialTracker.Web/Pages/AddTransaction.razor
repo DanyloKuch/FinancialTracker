@@ -93,7 +93,15 @@
         </div>
 
         <div class="form-row" style="margin-top: 10px;">
-            <div class="date-display" style="width: 100%; padding: 15px; background: #1E1E1E; border-radius: 12px; text-align: center;">📅 Сьогодні</div>
+            <div class="form-row" style="margin-top: 10px;">
+                <span class="label">Дата</span>
+                <input type="date"
+                       @bind="model.createdAt"
+                       @bind:format="yyyy-MM-dd"
+                       max="@DateTime.Now.ToString("yyyy-MM-dd")"
+                       class="custom-input"
+                       style="text-align: center; font-family: inherit;" />
+            </div>
         </div>
 
         <input type="text" placeholder="Написати коментар..." @bind="model.comment" class="comment-input" style="margin-top: 10px;" />

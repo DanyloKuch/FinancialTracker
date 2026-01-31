@@ -335,3 +335,29 @@
             flex-direction: row;
         }
     }
+
+.transactions-list {
+    /* Встановлюємо максимальну висоту (наприклад, як у сусідніх панелей) */
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: 5px; /* Місце для скролбару */
+}
+
+    /* Налаштування вигляду скролбару, щоб він був охайним у темній темі */
+    .transactions-list::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .transactions-list::-webkit-scrollbar-track {
+        background: #1e1e1e;
+        border-radius: 10px;
+    }
+
+    .transactions-list::-webkit-scrollbar-thumb {
+        background: #444;
+        border-radius: 10px;
+    }
+
+        .transactions-list::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }

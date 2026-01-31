@@ -11,5 +11,6 @@
         public double? exchangeRate { get; set; }
         public double commission { get; set; }
         public string comment { get; set; } = string.Empty;
+        public DateTime? createdAt { get; set; } = DateTime.Now;
     }
 }

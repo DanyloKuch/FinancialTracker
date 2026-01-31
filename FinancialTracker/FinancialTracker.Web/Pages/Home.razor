@@ -82,7 +82,7 @@
             </div>
 
             <div class="grid-col">
-                <h3>Останні транзакції</h3>
+                <h3 style="position: sticky; top: 0; background: var(--bg-color); z-index: 1;">Останні транзакції</h3>
                 <div class="transactions-list">
                     @if (recentTransactions.Any())
                     {
@@ -167,7 +167,7 @@
         var allTx = await FinancialService.GetTransactionsAsync();
         incomeSum = allTx.Where(t => t.Type == 0).Sum(t => t.Amount);
         expenseSum = allTx.Where(t => t.Type == 1).Sum(t => t.Amount);
-        recentTransactions = allTx.OrderByDescending(t => t.CreatedAt).Take(5).ToList();
+        recentTransactions = allTx.OrderByDescending(t => t.CreatedAt).ToList();
 
         categories = await FinancialService.GetCategoriesAsync();
         groups = await FinancialService.GetGroupsAsync();

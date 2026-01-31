@@ -27,18 +27,18 @@ namespace FinancialTracker.Domain.Models
             Comment = comment;
             CreatedAt = createdAt;
         }
-        public Guid Id { get; set; }
-        public Guid UserId { get; set; }
-        public Guid WalletId { get; set; }
-        public Guid? TargetWalletId { get; set; }
-        public Guid CategoryId { get; set; }
-        public Guid? GroupId { get; set; }
-        public decimal Amount { get; set; }
-        public TransactionType Type { get; set; }
-        public decimal? ExchangeRate { get; set; }
-        public decimal? Commission { get; set; }
-        public string? Comment { get; set; }
-        public DateTime CreatedAt { get; set; }
+        public Guid Id { get; private set; }
+        public Guid UserId { get; private set; }
+        public Guid WalletId { get; private set; }
+        public Guid? TargetWalletId { get; private set; }
+        public Guid CategoryId { get; private set; }
+        public Guid? GroupId { get; private set; }
+        public decimal Amount { get; private set; }
+        public TransactionType Type { get; private set; }
+        public decimal? ExchangeRate { get; private set; }
+        public decimal? Commission { get; private set; }
+        public string? Comment { get; private set; }
+        public DateTime CreatedAt { get; private set; }
 
         public static Result<Transaction> Create(Guid id, Guid userId, Guid walletid, Guid? targetWalletId, Guid categoryId, Guid? groupId,
             decimal amount, TransactionType type, decimal? exchangeRate, decimal commission, string comment, DateTime createdAt)
@@ -70,6 +70,23 @@ namespace FinancialTracker.Domain.Models
             var transaction = new Transaction(id, walletid, targetWalletId, userId, categoryId, groupId,
                 amount, type, exchangeRate, commission, comment, createdAt);
             return Result<Transaction>.Success(transaction);
+        }
+
+        public void Update(Guid walletId ,decimal amount, Guid categoryId, string? comment, Guid? targetWalletId, decimal? exchangeRate, decimal? commission, DateTime createdAt)
+        {
+            if (amount <= 0) throw new ArgumentException("Amount must be greater than zero.");
+
+            if (Type == TransactionType.Transfer && targetWalletId == null)
+                throw new ArgumentException("Target wallet is required for transfers.");
+
+            WalletId = walletId;
+            Amount = amount;
+            CategoryId = categoryId;
+            Comment = comment;
+            TargetWalletId = targetWalletId;
+            ExchangeRate = exchangeRate;
+            Commission = commission;
+            CreatedAt = createdAt;
         }
     }
 }

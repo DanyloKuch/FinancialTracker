@@ -52,7 +52,7 @@ namespace FinancialTracker.API.Controllers
             var result = await _categoryService.UpdateCategoryAsync(id, request);
 
             if (!result.IsSuccess)
-                return NotFound(new { message = result.Error });
+                return BadRequest(new { message = result.Error });
 
             return Ok(result.Value);
         }

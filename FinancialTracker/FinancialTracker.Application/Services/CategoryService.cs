@@ -21,7 +21,7 @@ namespace FinancialTracker.Application.Services
         public async Task<List<CategoryResponse>> GetUserCategoriesAsync()
         {
             var categories = await _repository.GetAllAsync(CurrentUserId);
-            return categories.Select(c => new CategoryResponse(c.Id, c.Name, c.IsArchived)).ToList();
+            return categories.Select(c => new CategoryResponse(c.Id, c.Name, c.IsArchived, c.TotalLimit)).ToList();
         }
 
         public async Task<Result<CategoryResponse>> GetCategoryByIdAsync(Guid id)
@@ -29,12 +29,12 @@ namespace FinancialTracker.Application.Services
             var category = await _repository.GetByIdAsync(id, CurrentUserId);
             if (category == null) return Result<CategoryResponse>.Failure("...");
 
-            return Result<CategoryResponse>.Success(new CategoryResponse(category.Id, category.Name, category.IsArchived));
+            return Result<CategoryResponse>.Success(new CategoryResponse(category.Id, category.Name, category.IsArchived, category.TotalLimit));
         }
 
         public async Task<Result<Guid>> CreateCategoryAsync(CategoryRequest request)
         {
-            var result = Category.Create(Guid.NewGuid(), request.Name, CurrentUserId);
+            var result = Category.Create(Guid.NewGuid(), request.Name, CurrentUserId, request.TotalLimit);
 
             if (!result.IsSuccess)
                 return Result<Guid>.Failure(result.Error!);
@@ -50,19 +50,16 @@ namespace FinancialTracker.Application.Services
             if (category == null)
                 return Result<CategoryResponse>.Failure("Category not found or access denied");
 
-            try
+            var updateResult = category.Update(request.Name, request.IsArchived, request.TotalLimit);
+
+            if (!updateResult.IsSuccess)
             {
-                category.UpdateName(request.Name);
-                category.SetArchived(request.IsArchived);
-            }
-            catch (ArgumentException)
-            {
-                return Result<CategoryResponse>.Failure("Invalid category name");
+                return Result<CategoryResponse>.Failure(updateResult.Error!);
             }
 
             await _repository.UpdateAsync(category);
 
-            var response = new CategoryResponse(category.Id, category.Name, category.IsArchived);
+            var response = new CategoryResponse(category.Id, category.Name, category.IsArchived, category.TotalLimit);
 
             return Result<CategoryResponse>.Success(response);
         }

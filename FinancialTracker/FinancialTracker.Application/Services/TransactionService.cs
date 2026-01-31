@@ -77,6 +77,13 @@ namespace FinancialTracker.Application.Services
             var wallet = walletRes.Value;
             if (wallet.IsArchived) return Result<Guid>.Failure("Не можна використовувати заархівований гаманець.");
 
+            if (request.CreatedAt.HasValue && request.CreatedAt.Value.Date > DateTime.UtcNow.Date)
+            {
+                return Result<Guid>.Failure("Дата транзакції не може бути в майбутньому.");
+            }
+
+            var transactionDate = request.CreatedAt ?? DateTime.UtcNow;
+
             var transaction = Transaction.Create(
                 id: Guid.NewGuid(),
                 userId: userId,
@@ -89,7 +96,7 @@ namespace FinancialTracker.Application.Services
                 exchangeRate: request.ExchangeRate,
                 commission: request.Commission,
                 comment: request.Comment,
-                createdAt: DateTime.UtcNow
+                createdAt: transactionDate
                );
 
             if (!transaction.IsSuccess) return Result<Guid>.Failure(transaction.Error);
@@ -123,6 +130,13 @@ namespace FinancialTracker.Application.Services
             var targetWallet = targetResult.Value;
             if (targetWallet.IsArchived) return Result<Guid>.Failure("Гаманець отримувача заархівований.");
 
+            if (request.CreatedAt.HasValue && request.CreatedAt.Value.Date > DateTime.UtcNow.Date)
+            {
+                return Result<Guid>.Failure("Дата транзакції не може бути в майбутньому.");
+            }
+
+            var transactionDate = request.CreatedAt ?? DateTime.UtcNow;
+
             var transactionResult = Transaction.Create(
                 id: Guid.NewGuid(),
                 userId: userId,
@@ -135,7 +149,7 @@ namespace FinancialTracker.Application.Services
                 exchangeRate: request.ExchangeRate ?? 1m,
                 commission: request.Commission,
                 comment: request.Comment,
-                createdAt: DateTime.UtcNow
+                createdAt: transactionDate
                  );
 
             if (transactionResult.IsFailure) return Result<Guid>.Failure(transactionResult.Error);
@@ -217,27 +231,56 @@ namespace FinancialTracker.Application.Services
 
                     await _walletRepository.UpdateAsync(targetWallet);
                 }
+                else 
+                {
+                    return Result<TransactionResponse>.Failure("Попередній цільовий гаманець не знайдено для скасування операції");
+                }
             }
 
-            transaction.Amount = request.Amount;
-            transaction.CategoryId = request.CategoryId;
-            transaction.Comment = request.Comment;
-            transaction.ExchangeRate = request.ExchangeRate;
+            if (request.CreatedAt.Date > DateTime.UtcNow.Date)
+            {
+                return Result<TransactionResponse>.Failure("Дата не може бути в майбутньому.");
+            }
 
-            wallet.ApplyTransaction(transaction.Amount, transaction.Type, transaction.Commission ?? 0);
+            transaction.Update(
+                request.WalletId,
+                request.Amount,
+                request.CategoryId,
+                request.Comment,
+                request.TargetWalletId,
+                request.ExchangeRate,
+                request.Commission,
+                request.CreatedAt
+                );
+
+
+            var currentWallet = wallet;
+
+            if (transaction.WalletId != wallet.Id)
+            {
+                var newWalletRes = await _walletRepository.GetByIdAsync(transaction.WalletId, userId);
+                if (newWalletRes.IsFailure) return Result<TransactionResponse>.Failure("Новий гаманець не знайдено.");
+                await _walletRepository.UpdateAsync(wallet);
+
+                currentWallet = newWalletRes.Value;
+            }
+
+            var applyRes = currentWallet.ApplyTransaction(transaction.Amount, transaction.Type, transaction.Commission ?? 0);
+            if (applyRes.IsFailure) return Result<TransactionResponse>.Failure(applyRes.Error); 
 
             if (transaction.Type == TransactionType.Transfer && transaction.TargetWalletId.HasValue)
             {
                 var targetWalletRes = await _walletRepository.GetByIdAsync(transaction.TargetWalletId.Value, userId);
-                if (targetWalletRes.IsSuccess)
+                if (targetWalletRes.IsFailure)
                 {
-                    var targetWallet = targetWalletRes.Value;
-                    var newTargetAmount = transaction.Amount * (transaction.ExchangeRate ?? 1m);
-
-                    targetWallet.ApplyTransaction(newTargetAmount, TransactionType.Income, 0);
-
-                    await _walletRepository.UpdateAsync(targetWallet);
+                    return Result<TransactionResponse>.Failure("Цільовий гаманець не знайдено");
                 }
+                var targetWallet = targetWalletRes.Value;
+                var newTargetAmount = transaction.Amount * (transaction.ExchangeRate ?? 1m);
+
+                targetWallet.ApplyTransaction(newTargetAmount, TransactionType.Income, 0);
+
+                await _walletRepository.UpdateAsync(targetWallet);
             }
 
             await _walletRepository.UpdateAsync(wallet);

@@ -112,10 +112,14 @@ namespace FinancialTracker.Infrastructure.Repositories
             var entity = await _context.Transactions.FirstOrDefaultAsync(t => t.Id == transaction.Id);
             if (entity != null)
             {
+                entity.WalletId = transaction.WalletId;
                 entity.Amount = transaction.Amount; 
                 entity.CategoryId = transaction.CategoryId;
                 entity.Comment = transaction.Comment;
                 entity.ExchangeRate = transaction.ExchangeRate;
+                entity.Commission = transaction.Commission;
+                entity.TargetWalletId = transaction.TargetWalletId;
+                entity.CreatedAt = transaction.CreatedAt;
             }
         }
     }

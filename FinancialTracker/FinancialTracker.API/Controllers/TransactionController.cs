@@ -24,7 +24,7 @@ namespace FinancialTracker.API.Controllers
 
             if (result.IsFailure)
             {
-                return BadRequest(result.Error);
+                return BadRequest(result);
             }
 
             return CreatedAtAction(nameof(GetTransactionById), new { id = result.Value }, result.Value);
