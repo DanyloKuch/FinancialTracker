@@ -13,6 +13,5 @@
         public ICollection<GroupMemberEntity> Members { get; set; } = new List<GroupMemberEntity>();
         public ICollection<InvitationEntity> Invitations { get; set; } = new List<InvitationEntity>();
         public ICollection<TransactionEntity> Transactions { get; set; } = new List<TransactionEntity>();
-        public ICollection<GroupCategoryLimitEntity> Limits { get; set; } = new List<GroupCategoryLimitEntity>();
     }
 }

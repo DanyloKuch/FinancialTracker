@@ -16,6 +16,10 @@ namespace FinancialTracker.Infrastructure.Configurations
                 .IsRequired()
                 .HasMaxLength(50);
 
+            builder.Property(c => c.TotalLimit)
+                .HasColumnType("decimal(18,2)")
+                .HasDefaultValue(0);
+
             builder.HasOne(c => c.User)
                    .WithMany(u => u.Categories)
                    .HasForeignKey(c => c.UserId)

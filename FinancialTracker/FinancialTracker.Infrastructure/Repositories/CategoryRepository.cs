@@ -16,7 +16,7 @@ namespace FinancialTracker.Infrastructure.Repositories
 
         private Category MapToDomain(CategoryEntity entity)
         {
-            return Category.Load(entity.Id, entity.Name, entity.UserId, entity.IsArchived);
+            return Category.Load(entity.Id, entity.Name, entity.UserId, entity.IsArchived, entity.TotalLimit);
         }
 
         public async Task<Category?> GetByIdAsync(Guid categoryId, Guid userId)
@@ -45,7 +45,8 @@ namespace FinancialTracker.Infrastructure.Repositories
                 Id = category.Id,
                 Name = category.Name,
                 UserId = category.UserId,
-                IsArchived = category.IsArchived
+                IsArchived = category.IsArchived,
+                TotalLimit = category.TotalLimit
             };
 
             await _context.Categories.AddAsync(entity);
@@ -61,6 +62,7 @@ namespace FinancialTracker.Infrastructure.Repositories
             {
                 entity.Name = category.Name;
                 entity.IsArchived = category.IsArchived;
+                entity.TotalLimit = category.TotalLimit;
                 _context.Categories.Update(entity);
                 await _context.SaveChangesAsync();
             }
