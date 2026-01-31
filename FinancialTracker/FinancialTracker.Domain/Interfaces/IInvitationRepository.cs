@@ -6,7 +6,9 @@ namespace FinancialTracker.Domain.Interfaces
     {
         Task AddAsync(Invitation invitation);
         Task<Invitation?> GetByIdAsync(Guid id);
-        Task<List<Invitation>> GetPendingByEmailAsync(string email);
+        Task<List<Invitation>> GetSentByUserIdAsync(Guid userId);
+        Task<List<Invitation>> GetReceivedByEmailAsync(string email);
         Task UpdateAsync(Invitation invitation);
+        Task DeleteAsync(Invitation invitation);
     }
 }

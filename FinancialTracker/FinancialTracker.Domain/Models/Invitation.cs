@@ -45,9 +45,13 @@ namespace FinancialTracker.Domain.Models
             return Result.Success();
         }
 
-        public void Reject()
+        public Result Reject()
         {
+            if (Status == InvitationStatus.Accepted)
+                return Result.Failure("Cannot reject an already accepted invitation.");
+
             Status = InvitationStatus.Rejected;
+            return Result.Success();
         }
     }
 }

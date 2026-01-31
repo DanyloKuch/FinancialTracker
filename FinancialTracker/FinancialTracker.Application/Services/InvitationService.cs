@@ -50,43 +50,63 @@ namespace FinancialTracker.Application.Services
             return Result<Guid>.Success(invitationResult.Value!.Id);
         }
 
-        public async Task<Result> AcceptInvitationAsync(Guid invitationId)
+        public async Task<Result> RespondToInvitationAsync(Guid invitationId, bool isAccepted)
         {
             var invitation = await _invitationRepository.GetByIdAsync(invitationId);
             if (invitation == null) return Result.Failure("Invitation not found.");
 
             var currentUserEmail = await _userRepository.GetUserEmailByIdAsync(_currentUserService.UserId);
-
             if (invitation.InviteeEmail != currentUserEmail)
                 return Result.Failure("Access denied.");
 
-            var acceptResult = invitation.Accept();
-            if (!acceptResult.IsSuccess) return acceptResult;
+            Result result;
 
-            var newMemberResult = GroupMember.Create(
-                Guid.NewGuid(),
-                invitation.GroupId,
-                _currentUserService.UserId,
-                GroupRole.Member,
-                DateTime.UtcNow);
+            if (isAccepted)
+            {
+                result = invitation.Accept();
+                if (!result.IsSuccess) return result;
 
-            if (!newMemberResult.IsSuccess)
-                return Result.Failure(newMemberResult.Error!);
+                var newMemberResult = GroupMember.Create(Guid.NewGuid(), invitation.GroupId, _currentUserService.UserId, GroupRole.Member, DateTime.UtcNow);
+                if (!newMemberResult.IsSuccess) return Result.Failure(newMemberResult.Error!);
 
-            await _groupRepository.AddMemberAsync(newMemberResult.Value!);
+                await _groupRepository.AddMemberAsync(newMemberResult.Value);
+            }
+            else
+            {
+                result = invitation.Reject();
+                if (!result.IsSuccess) return result;
+            }
 
             await _invitationRepository.UpdateAsync(invitation);
-
             return Result.Success();
         }
 
-        public async Task<List<InvitationResponse>> GetMyPendingInvitationsAsync()
+        public async Task<List<InvitationResponse>> GetMySentInvitationsAsync()
+        {
+            var invitations = await _invitationRepository.GetSentByUserIdAsync(_currentUserService.UserId);
+            return invitations.Select(i => new InvitationResponse(i.Id, i.GroupId, i.InviteeEmail, i.Status.ToString())).ToList();
+        }
+
+        public async Task<List<InvitationResponse>> GetMyReceivedInvitationsAsync()
         {
             var email = await _userRepository.GetUserEmailByIdAsync(_currentUserService.UserId);
             if (string.IsNullOrEmpty(email)) return new List<InvitationResponse>();
 
-            var invitations = await _invitationRepository.GetPendingByEmailAsync(email);
+            var invitations = await _invitationRepository.GetReceivedByEmailAsync(email);
+
             return invitations.Select(i => new InvitationResponse(i.Id, i.GroupId, i.InviterId.ToString(), i.Status.ToString())).ToList();
+        }
+
+        public async Task<Result> CancelInvitationAsync(Guid invitationId)
+        {
+            var invitation = await _invitationRepository.GetByIdAsync(invitationId);
+            if (invitation == null) return Result.Failure("Invitation not found.");
+
+            if (invitation.InviterId != _currentUserService.UserId)
+                return Result.Failure("You can only cancel your own invitations.");
+
+            await _invitationRepository.DeleteAsync(invitation);
+            return Result.Success();
         }
     }
 }

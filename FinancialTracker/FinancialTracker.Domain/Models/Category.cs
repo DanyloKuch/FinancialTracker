@@ -7,16 +7,18 @@ namespace FinancialTracker.Domain.Models
         public string Name { get; private set; } = null!;
         public Guid UserId { get; private set; }
         public bool IsArchived { get; private set; }
+        public decimal TotalLimit { get; private set; }
 
-        private Category(Guid id, string name, Guid userId, bool isArchived)
+        private Category(Guid id, string name, Guid userId, bool isArchived, decimal totalLimit)
         {
             Id = id;
             Name = name;
             UserId = userId;
             IsArchived = isArchived;
+            TotalLimit = totalLimit;
         }
 
-        public static Result<Category> Create(Guid id, string name, Guid userId)
+        public static Result<Category> Create(Guid id, string name, Guid userId, decimal totalLimit)
         {
             if (string.IsNullOrWhiteSpace(name))
                 return Result<Category>.Failure("Category name cannot be empty.");
@@ -30,25 +32,30 @@ namespace FinancialTracker.Domain.Models
             if (userId == Guid.Empty)
                 return Result<Category>.Failure("User ID is invalid.");
 
-            return Result<Category>.Success(new Category(id, name, userId, false));
+            if (totalLimit < 0)
+                return Result<Category>.Failure("Limit cannot be negative.");
+
+            return Result<Category>.Success(new Category(id, name, userId, false, totalLimit));
         }
 
-        public static Category Load(Guid id, string name, Guid userId, bool isArchived)
+        public static Category Load(Guid id, string name, Guid userId, bool isArchived, decimal totalLimit)
         {
-            return new Category(id, name, userId, isArchived);
+            return new Category(id, name, userId, isArchived, totalLimit);
         }
 
-        public void UpdateName(string newName)
+        public Result Update(string name, bool isArchived, decimal totalLimit)
         {
-            if (string.IsNullOrWhiteSpace(newName) || newName.Length > 50)
-                throw new ArgumentException("Invalid name");
+            if (string.IsNullOrWhiteSpace(name))
+                return Result.Failure("Invalid name");
 
-            Name = newName;
-        }
+            if (totalLimit < 0)
+                return Result.Failure("Limit cannot be negative.");
 
-        public void SetArchived(bool isArchived)
-        {
+            Name = name;
             IsArchived = isArchived;
+            TotalLimit = totalLimit;
+
+            return Result.Success();
         }
     }
 }

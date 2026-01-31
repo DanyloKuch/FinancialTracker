@@ -41,11 +41,22 @@ namespace FinancialTracker.Infrastructure.Repositories
             return entity == null ? null : MapToDomain(entity);
         }
 
-        public async Task<List<Invitation>> GetPendingByEmailAsync(string email)
+        public async Task<List<Invitation>> GetSentByUserIdAsync(Guid userId)
         {
             var entities = await _context.Invitations
                 .AsNoTracking()
-                .Where(i => i.InviteeEmail == email && i.Status == InvitationStatus.Pending)
+                .Where(i => i.InviterId == userId)
+                .OrderByDescending(i => i.CreatedAt)
+                .ToListAsync();
+            return entities.Select(MapToDomain).ToList();
+        }
+
+        public async Task<List<Invitation>> GetReceivedByEmailAsync(string email)
+        {
+            var entities = await _context.Invitations
+                .AsNoTracking()
+                .Where(i => i.InviteeEmail == email)
+                .OrderByDescending(i => i.CreatedAt) 
                 .ToListAsync();
             return entities.Select(MapToDomain).ToList();
         }
@@ -56,6 +67,16 @@ namespace FinancialTracker.Infrastructure.Repositories
             if (entity != null)
             {
                 entity.Status = invitation.Status;
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task DeleteAsync(Invitation invitation)
+        {
+            var entity = await _context.Invitations.FindAsync(invitation.Id);
+            if (entity != null)
+            {
+                _context.Invitations.Remove(entity);
                 await _context.SaveChangesAsync();
             }
         }

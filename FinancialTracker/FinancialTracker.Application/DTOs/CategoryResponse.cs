@@ -1,4 +1,4 @@
 ﻿namespace FinancialTracker.Application.DTOs
 {
-    public record CategoryResponse(Guid Id, string Name, bool IsArchived);
+    public record CategoryResponse(Guid Id, string Name, bool IsArchived, decimal TotalLimit);
 }

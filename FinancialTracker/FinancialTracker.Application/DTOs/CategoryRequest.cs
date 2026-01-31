@@ -1,4 +1,4 @@
 ﻿namespace FinancialTracker.Application.DTOs
 {
-    public record CategoryRequest(string Name, bool IsArchived);
+    public record CategoryRequest(string Name, bool IsArchived, decimal TotalLimit);
 }

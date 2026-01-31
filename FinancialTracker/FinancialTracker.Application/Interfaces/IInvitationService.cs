@@ -6,7 +6,9 @@ namespace FinancialTracker.Application.Interfaces
     public interface IInvitationService
     {
         Task<Result<Guid>> InviteUserAsync(InviteUserRequest request);
-        Task<Result> AcceptInvitationAsync(Guid invitationId);
-        Task<List<InvitationResponse>> GetMyPendingInvitationsAsync();
+        Task<Result> RespondToInvitationAsync(Guid invitationId, bool isAccepted);
+        Task<Result> CancelInvitationAsync(Guid invitationId);
+        Task<List<InvitationResponse>> GetMyReceivedInvitationsAsync();
+        Task<List<InvitationResponse>> GetMySentInvitationsAsync();
     }
 }

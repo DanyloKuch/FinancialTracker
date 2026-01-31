@@ -17,10 +17,17 @@ namespace FinancialTracker.API.Controllers
             _invitationService = invitationService;
         }
 
-        [HttpGet("my")]
-        public async Task<IActionResult> GetMyInvitations()
+        [HttpGet("received")]
+        public async Task<IActionResult> GetReceived()
         {
-            var result = await _invitationService.GetMyPendingInvitationsAsync();
+            var result = await _invitationService.GetMyReceivedInvitationsAsync();
+            return Ok(result);
+        }
+
+        [HttpGet("sent")]
+        public async Task<IActionResult> GetSent()
+        {
+            var result = await _invitationService.GetMySentInvitationsAsync();
             return Ok(result);
         }
 
@@ -32,12 +39,27 @@ namespace FinancialTracker.API.Controllers
             return Ok(new { InvitationId = result.Value });
         }
 
-        [HttpPost("{id}/accept")]
-        public async Task<IActionResult> AcceptInvitation(Guid id)
+        [HttpPost("{id}/respond")]
+        public async Task<IActionResult> RespondToInvitation(Guid id, [FromBody] RespondInvitationRequest request)
         {
-            var result = await _invitationService.AcceptInvitationAsync(id);
-            if (!result.IsSuccess) return BadRequest(new { message = result.Error });
-            return Ok(new { message = "Invitation accepted" });
+            var result = await _invitationService.RespondToInvitationAsync(id, request.IsAccepted);
+
+            if (!result.IsSuccess)
+                return BadRequest(new { message = result.Error });
+
+            var statusMessage = request.IsAccepted ? "Accepted" : "Rejected";
+            return Ok(new { message = $"Invitation {statusMessage}" });
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> CancelInvitation(Guid id)
+        {
+            var result = await _invitationService.CancelInvitationAsync(id);
+
+            if (!result.IsSuccess)
+                return BadRequest(new { message = result.Error });
+
+            return NoContent();
         }
     }
 }
