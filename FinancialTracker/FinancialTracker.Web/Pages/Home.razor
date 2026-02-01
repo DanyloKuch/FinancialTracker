@@ -29,7 +29,7 @@
         <div class="cards-row">
             <div class="action-card expense-card">
                 <div class="card-top">
-                    <button class="add-btn" @onclick='() => Nav.NavigateTo("/add-transaction")'>📅 + Додати</button>
+                    <button class="add-btn" @onclick='() => Nav.NavigateTo("/add-transaction/1")'>📅 + Додати</button>
                 </div>
                 <div class="card-bottom">
                     <span>Витрати</span>
@@ -39,7 +39,7 @@
 
             <div class="action-card income-card">
                 <div class="card-top">
-                    <button class="add-btn">📅 + Додати</button>
+                    <button class="add-btn" @onclick='() => Nav.NavigateTo("/add-transaction/0")'>📅 + Додати</button>
                 </div>
                 <div class="card-bottom">
                     <span>Дохід</span>
@@ -57,9 +57,20 @@
                     {
                         @foreach (var cat in categories)
                         {
-                            var limit = 5000;
-                            var spent = new Random().Next(500, 4800);
-                            var percent = (double)spent / limit * 100;
+                            // Рахуємо суму витрат (Type == 1) саме для цієї категорії
+                            var spent = allTransactions
+                            .Where(t => t.CategoryId == cat.Id && t.Type == 1)
+                            .Sum(t => t.Amount);
+
+                            var limit = cat.TotalLimit;
+
+                            // Розрахунок відсотків з перевіркою на 0, щоб не було помилок
+                            var percent = limit > 0 ? (double)spent / (double)limit * 100 : 0;
+
+                            // Обмежуємо ширину прогрес-бару до 100% для коректного відображення,
+                            // навіть якщо ліміт перевищено
+                            var progressWidth = percent > 100 ? 100 : percent;
+
                             string colorClass = percent > 80 ? "red" : (percent > 50 ? "orange" : "green");
 
                             <div class="limit-row">
@@ -68,9 +79,12 @@
                                     <span class="edit-pen">✎</span>
                                 </div>
                                 <div class="progress-track">
-                                    <div class="progress-fill @colorClass" style="width: @percent%"></div>
+                                    <div class="progress-fill @colorClass" style="width: @progressWidth%"></div>
                                 </div>
-                                <div class="limit-stats">Витрачено: @spent / @limit ₴</div>
+                                <div class="limit-stats">
+                                    Витрачено: @spent.ToString("N0") / @limit.ToString("N0") ₴
+                                    (@percent.ToString("0")%)
+                                </div>
                             </div>
                         }
                     }
@@ -143,8 +157,10 @@
     <nav class="bottom-nav">
         <div class="nav-item active"><span class="nav-icon">👛</span><span>Баланс</span></div>
         <div class="nav-item"><span class="nav-icon">📈</span><span>Статистика</span></div>
-        <div class="nav-item center-btn"><button class="plus-btn" @onclick='() => Nav.NavigateTo("/add-transaction")'>+</button><span>Додати</span></div>
-        <div class="nav-item"><span class="nav-icon">👥</span><span>Групи</span></div>
+        <div class="nav-item center-btn">
+            <button class="plus-btn" @onclick='() => Nav.NavigateTo("/add-transaction/1")'>+</button>
+            <span>Додати</span>
+        </div>        <div class="nav-item"><span class="nav-icon">👥</span><span>Групи</span></div>
         <div class="nav-item"><span class="nav-icon">•••</span><span>Більше</span></div>
     </nav>
 </div>
@@ -156,6 +172,7 @@
 
     private List<CategoryDto> categories = new();
     private List<TransactionDto> recentTransactions = new();
+    private List<TransactionDto> allTransactions = new(); // Додаємо це
     private List<GroupDto> groups = new();
     private GroupDto? firstGroup;
 
@@ -164,10 +181,11 @@
         var wallets = await FinancialService.GetWalletsAsync();
         totalWalletBalance = wallets.Sum(w => w.Balance);
 
-        var allTx = await FinancialService.GetTransactionsAsync();
-        incomeSum = allTx.Where(t => t.Type == 0).Sum(t => t.Amount);
-        expenseSum = allTx.Where(t => t.Type == 1).Sum(t => t.Amount);
-        recentTransactions = allTx.OrderByDescending(t => t.CreatedAt).ToList();
+        allTransactions = await FinancialService.GetTransactionsAsync(); // Зберігаємо всі
+
+        incomeSum = allTransactions.Where(t => t.Type == 0).Sum(t => t.Amount);
+        expenseSum = allTransactions.Where(t => t.Type == 1).Sum(t => t.Amount);
+        recentTransactions = allTransactions.OrderByDescending(t => t.CreatedAt).ToList();
 
         categories = await FinancialService.GetCategoriesAsync();
         groups = await FinancialService.GetGroupsAsync();
