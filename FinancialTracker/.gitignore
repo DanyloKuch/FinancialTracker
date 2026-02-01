@@ -3,3 +3,5 @@
 [Oo]bj/
 *.user
 *.suo
+
+FinancialTracker/FinancialTracker.Infrastructure/Migrations/
