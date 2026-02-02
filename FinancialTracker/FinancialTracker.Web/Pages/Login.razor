@@ -1,0 +1,104 @@
+﻿@page "/login"
+@using Blazored.LocalStorage
+@using FinancialTracker.Web.Providers
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Text.Json.Serialization
+@inject HttpClient Http
+@inject ILocalStorageService LocalStorage
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavManager
+@inject ISnackbar Snackbar
+@attribute [AllowAnonymous]
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
+    <MudPaper Elevation="4" Class="pa-8">
+        <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">Вхід</MudText>
+        <MudTextField @bind-Value="_loginModel.Email" Label="Email" Variant="Variant.Outlined" Class="my-4" />
+        <MudTextField @bind-Value="_loginModel.Password" Label="Пароль" Variant="Variant.Outlined" InputType="InputType.Password" />
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
+                   OnClick="HandleLogin" Class="mt-6">Увійти</MudButton>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private LoginRequest _loginModel = new();
+
+    private async Task HandleLogin()
+    {
+        try
+        {
+            // 1. Лог перед відправкою
+            Console.WriteLine($"Відправляю запит: {_loginModel.Email}");
+
+            var response = await Http.PostAsJsonAsync("api/v1/auth/login", _loginModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // 2. Читаємо відповідь. Використовуємо LoginResponse з атрибутами
+                var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+
+                // ДІАГНОСТИКА: Виводимо в консоль браузера (F12) те, що отримали
+                Console.WriteLine($"Статус API: OK");
+                Console.WriteLine($"Отриманий токен (перші 10 символів): {result?.AccessToken?.Substring(0, 10) ?? "NULL"}");
+
+                if (result != null && !string.IsNullOrEmpty(result.AccessToken))
+                {
+                    // 3. Зберігаємо токен
+                    await LocalStorage.SetItemAsync("authToken", result.AccessToken);
+                    Console.WriteLine("Токен збережено в LocalStorage");
+
+                    // 4. Оновлюємо провайдер
+                    if (AuthStateProvider is JwtAuthenticationStateProvider jwtProvider)
+                    {
+                        jwtProvider.NotifyUserAuthentication(result.AccessToken);
+                        Console.WriteLine("AuthStateProvider повідомлено");
+                    }
+
+                    Snackbar.Add("Успішний вхід!", Severity.Success);
+
+                    NavManager.NavigateTo("/");
+                }
+                else
+                {
+                    Snackbar.Add("Токен прийшов порожній!", Severity.Error);
+                    Console.WriteLine("ПОМИЛКА: Об'єкт result є, але AccessToken == null");
+                }
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Помилка сервера: {response.StatusCode}", Severity.Error);
+                Console.WriteLine($"Login failed: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Критична помилка: {ex.Message}", Severity.Error);
+            Console.WriteLine(ex.ToString());
+        }
+    }
+
+    public class LoginRequest
+    {
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
+
+    // ОСЬ ТУТ БУЛА ПРОБЛЕМА. Тепер ми явно вказуємо імена з JSON.
+    public class LoginResponse
+    {
+        [JsonPropertyName("accessToken")]
+        public string AccessToken { get; set; }
+
+        [JsonPropertyName("tokenType")]
+        public string TokenType { get; set; }
+
+        [JsonPropertyName("expiresIn")]
+        public int ExpiresIn { get; set; }
+
+        [JsonPropertyName("refreshToken")]
+        public string RefreshToken { get; set; }
+    }
+}

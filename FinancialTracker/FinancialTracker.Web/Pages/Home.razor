@@ -1,0 +1,184 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.Authorization
+@using FinancialTracker.Web.Models
+@using FinancialTracker.Web.Services
+@attribute [Authorize]
+@inject FinancialService FinancialService
+@inject NavigationManager Nav
+
+<PageTitle>Головна - Financial Tracker</PageTitle>
+
+<div class="dashboard-wrapper">
+    <header class="top-bar">
+        <div class="user-profile">
+            <div class="user-avatar">👤</div>
+        </div>
+        <div class="currency-rates">
+            <div class="rate-item">🇺🇸 USD 42.95/43.45</div>
+            <div class="rate-item">🇪🇺 EUR 50.35/50.98</div>
+        </div>
+        <div class="wallet-select">Основний ▼</div>
+    </header>
+
+    <div class="dashboard-content">
+        <div class="balance-section">
+            <span class="label">Поточний баланс</span>
+            <h1 class="balance-amount">@totalWalletBalance.ToString("N2") ₴</h1>
+        </div>
+
+        <div class="cards-row">
+            <div class="action-card expense-card">
+                <div class="card-top">
+                    <button class="add-btn" @onclick='() => Nav.NavigateTo("/add-transaction/1")'>📅 + Додати</button>
+                </div>
+                <div class="card-bottom">
+                    <span>Витрати (за місяць)</span>
+                    <h3>@expenseSum.ToString("N2")₴</h3>
+                </div>
+            </div>
+
+            <div class="action-card income-card">
+                <div class="card-top">
+                    <button class="add-btn" @onclick='() => Nav.NavigateTo("/add-transaction/0")'>📅 + Додати</button>
+                </div>
+                <div class="card-bottom">
+                    <span>Дохід (за місяць)</span>
+                    <h3>@incomeSum.ToString("N2")₴</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="grid-col">
+                <h3>Активні ліміти</h3>
+                <div class="panel dark-panel">
+                    @if (categories.Any())
+                    {
+                        @foreach (var cat in categories)
+                        {
+                            <div class="limit-row">
+                                <div class="limit-header">
+                                    <span>@cat.Name</span>
+                                    <span class="edit-pen">✎</span>
+                                </div>
+                                <div class="progress-track">
+                                    <div class="progress-fill green" style="width: 0%"></div>
+                                </div>
+                                <div class="limit-stats">
+                                    Ліміт: @cat.TotalLimit.ToString("N0") ₴
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="loading-text">Немає категорій або завантаження...</p>
+                    }
+                </div>
+            </div>
+
+            <div class="grid-col">
+                <div class="section-header" @onclick='() => Nav.NavigateTo("/transactions")' style="cursor: pointer;">
+                    <h3>Останні транзакції</h3>
+                    <div class="view-all-action">
+                        <span>Всі (@totalTransactionsCount)</span>
+                        <span class="arrow-icon">→</span>
+                    </div>
+                </div>
+
+                <div class="transactions-list">
+                    @if (recentTransactions.Any())
+                    {
+                        @foreach (var tx in recentTransactions)
+                        {
+                            bool isIncome = tx.Type == 0;
+                            string sign = isIncome ? "+" : "-";
+                            string colorClass = isIncome ? "text-green" : "text-white";
+                            string icon = isIncome ? "💰" : "🛒";
+
+                            <div class="trans-item">
+                                <div class="trans-icon-circle">@icon</div>
+                                <div class="trans-details">
+                                    <div class="trans-title">@(string.IsNullOrEmpty(tx.Comment) ? "Транзакція" : tx.Comment)</div>
+                                    <div class="trans-date">@tx.CreatedAt.ToString("dd MMMM")</div>
+                                </div>
+                                <div class="trans-sum @colorClass">@sign@tx.Amount.ToString("N0")₴</div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="loading-text">Транзакцій поки немає...</p>
+                    }
+                </div>
+            </div>
+
+            <div class="grid-col">
+                @if (firstGroup != null)
+                {
+                    <div class="group-banner">
+                        <div class="group-top">
+                            <span class="group-title">Бюджет</span>
+                            <div class="group-avatars"><span class="av">User</span></div>
+                        </div>
+                        <div class="group-money">
+                            <h1>@firstGroup.TotalLimit.ToString("N0") ₴</h1>
+                            <span>з ліміту групи</span>
+                        </div>
+                        <div class="progress-track group-track">
+                            <div class="progress-fill group-fill" style="width: 62%"></div>
+                        </div>
+                        <div class="limit-stats">Витрачено: 62%</div>
+                        <div class="group-info-row">
+                            <div class="group-icon">O</div>
+                            <div class="group-text">
+                                <b>@firstGroup.Name</b><br />@firstGroup.CreatedAt.ToString("dd MMM yyyy")
+                            </div>
+                        </div>
+                        <button class="group-add-btn">+ Додати</button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <div class="nav-item active"><span class="nav-icon">👛</span><span>Баланс</span></div>
+        <div class="nav-item"><span class="nav-icon">📈</span><span>Статистика</span></div>
+        <div class="nav-item center-btn">
+            <button class="plus-btn" @onclick='() => Nav.NavigateTo("/add-transaction/1")'>+</button>
+            <span>Додати</span>
+        </div>
+        <div class="nav-item"><span class="nav-icon">👥</span><span>Групи</span></div>
+        <div class="nav-item"><span class="nav-icon">•••</span><span>Більше</span></div>
+    </nav>
+</div>
+
+@code {
+    private decimal totalWalletBalance = 0;
+    private decimal incomeSum = 0; 
+    private decimal expenseSum = 0; 
+
+    private List<CategoryDto> categories = new();
+    private List<TransactionDto> recentTransactions = new();
+    private int totalTransactionsCount = 0;
+    private List<GroupDto> groups = new();
+    private GroupDto? firstGroup;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var wallets = await FinancialService.GetWalletsAsync();
+        totalWalletBalance = wallets.Sum(w => w.Balance);
+
+        var pagedResult = await FinancialService.GetTransactionsAsync(page: 1, pageSize: 20);
+        recentTransactions = pagedResult.Items;
+        totalTransactionsCount = pagedResult.TotalCount;
+
+        categories = await FinancialService.GetCategoriesAsync();
+        groups = await FinancialService.GetGroupsAsync();
+        firstGroup = groups.FirstOrDefault();
+
+        incomeSum = 0;
+        expenseSum = 0;
+    }
+}

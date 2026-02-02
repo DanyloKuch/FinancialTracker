@@ -51,9 +51,6 @@ namespace FinancialTracker.Infrastructure.Configurations
                 .WithMany(g => g.Transactions)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
-
-            builder.Property(t => t.CreatedAt)
-                .HasDefaultValueSql("GETUTCDATE()");
         }
     }
 }

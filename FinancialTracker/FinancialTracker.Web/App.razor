@@ -1,0 +1,36 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+
+@* 👇 Оця обгортка критично важлива! Без неї авторизація не працює *@
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            @* Використовуємо AuthorizeRouteView для захищених маршрутів *@
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                <NotAuthorized>
+                    @if (context.User.Identity?.IsAuthenticated != true)
+                    {
+                        @* Якщо не залогінений - редірект на логін або повідомлення *@
+                        <div class="pa-8 text-center">
+                            <h3>Ви не авторизовані</h3>
+                            <a href="login">Перейти до входу</a>
+                        </div>
+                    }
+                    else
+                    {
+                        <p>У вас немає прав для перегляду цієї сторінки.</p>
+                    }
+                </NotAuthorized>
+                <Authorizing>
+                    <div class="pa-4">Перевірка доступу...</div>
+                </Authorizing>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>Not found</PageTitle>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <p role="alert">Сторінку не знайдено.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

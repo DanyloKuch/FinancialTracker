@@ -24,16 +24,16 @@ namespace FinancialTracker.API.Controllers
 
             if (result.IsFailure)
             {
-                return BadRequest(result.Error);
+                return BadRequest(result);
             }
 
             return CreatedAtAction(nameof(GetTransactionById), new { id = result.Value }, result.Value);
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAllTransaction()
+        public async Task<IActionResult> GetAllTransaction([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
-            var transaction = await _transactionService.GetAllTransactionByUser();
+            var transaction = await _transactionService.GetAllTransactionByUser(page, pageSize);
             return Ok(transaction);
         }
 

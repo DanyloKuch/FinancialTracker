@@ -1,0 +1,174 @@
+﻿@page "/add-transaction"
+@page "/add-transaction/{DefaultType:int}"
+@using FinancialTracker.Web.Models
+@using FinancialTracker.Web.Services
+@inject FinancialService FinancialService
+@inject NavigationManager Nav
+
+<div class="add-tx-wrapper">
+    <header class="tx-header">
+        <button class="cancel-btn" @onclick='() => Nav.NavigateTo("/")'>Скасувати</button>
+        <h2 class="title">Додати транзакцію</h2>
+        <div style="width: 80px;"></div>
+    </header>
+
+    <div class="type-switcher">
+        <button type="button" class="type-btn @(model.type == 1 ? "active" : "")" @onclick="() => SetType(1)">Витрати</button>
+        <button type="button" class="type-btn @(model.type == 0 ? "active" : "")" @onclick="() => SetType(0)">Дохід</button>
+        <button type="button" class="type-btn @(model.type == 2 ? "active" : "")" @onclick="() => SetType(2)">Переказ</button>
+    </div>
+
+    <div class="amount-display">
+        <span class="currency-symbol @GetColorClass()">₴</span>
+        <input type="number" class="amount-input" @bind="model.amount" step="0.01" placeholder="0" />
+    </div>
+
+    <div class="selection-section">
+
+        @if (model.type == 2)
+        {
+            <div class="transfer-container">
+                <div class="transfer-box">
+                    <span class="label">Звідки</span>
+                    <div class="wallets-grid">
+                        @foreach (var wallet in wallets)
+                        {
+                            <div class="wallet-card @(model.walletid == wallet.Id ? "selected" : "")"
+                                 @onclick="() => model.walletid = wallet.Id">
+                                <div class="wallet-icon">💳</div>
+                                <span class="wallet-name">@wallet.Name</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="transfer-arrow">⬇</div>
+
+                <div class="transfer-box">
+                    <span class="label">Куди</span>
+                    <div class="wallets-grid">
+                        @foreach (var wallet in wallets.Where(w => w.Id != model.walletid))
+                        {
+                            <div class="wallet-card @(model.targetWalletId == wallet.Id ? "selected-target" : "")"
+                                 @onclick="() => model.targetWalletId = wallet.Id">
+                                <div class="wallet-icon">📥</div>
+                                <span class="wallet-name">@wallet.Name</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="input-wrapper" style="margin-top: 15px;">
+                    <span class="label">Комісія</span>
+                    <input type="number" @bind="model.commission" class="custom-input" placeholder="0.00" />
+                </div>
+            </div>
+        }
+        else
+        {
+            <span class="label">Оберіть гаманець</span>
+            <div class="wallets-grid">
+                @foreach (var wallet in wallets)
+                {
+                    <div class="wallet-card @(model.walletid == wallet.Id ? "selected" : "")"
+                         @onclick="() => model.walletid = wallet.Id">
+                        <div class="wallet-icon">@(wallet.CurrencyCode == "USD" ? "💵" : "💳")</div>
+                        <span class="wallet-name">@wallet.Name</span>
+                    </div>
+                }
+            </div>
+        }
+
+        <div class="form-row" style="margin-top: 20px;">
+            <div class="dropdown-container">
+                <span class="label">Категорія</span>
+                <select @bind="model.categoryId" class="custom-select">
+                    <option value="@Guid.Empty">Обрати категорію</option>
+                    @foreach (var cat in categories)
+                    {
+                        <option value="@cat.Id">@cat.Name</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row" style="margin-top: 10px;">
+            <div class="form-row" style="margin-top: 10px;">
+                <span class="label">Дата</span>
+                <input type="date"
+                       @bind="model.createdAt"
+                       @bind:format="yyyy-MM-dd"
+                       max="@DateTime.Now.ToString("yyyy-MM-dd")"
+                       class="custom-input"
+                       style="text-align: center; font-family: inherit;" />
+            </div>
+        </div>
+
+        <input type="text" placeholder="Написати коментар..." @bind="model.comment" class="comment-input" style="margin-top: 10px;" />
+    </div>
+
+    <button class="save-btn" @onclick="HandleSave" disabled="@isSaving">
+        @(isSaving ? "Зберігаємо..." : "Зберегти")
+    </button>
+</div>
+
+@code {
+    [Parameter] public int DefaultType { get; set; } = 1;
+
+    private TransactionCreateDto model = new() { type = 1, commission = 0 };
+    private List<WalletDto> wallets = new();
+    private List<CategoryDto> categories = new();
+    private bool isSaving = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        model.type = DefaultType;
+        wallets = await FinancialService.GetWalletsAsync();
+        categories = await FinancialService.GetCategoriesAsync();
+
+        if (wallets.Any()) model.walletid = wallets.First().Id;
+
+        if (model.type == 2)
+        {
+            var transferCat = categories.FirstOrDefault(c => c.Name.Contains("Переказ"));
+            if (transferCat != null) model.categoryId = Guid.Parse(transferCat.Id.ToString());
+        }
+    }
+
+    private void SetType(int newType)
+    {
+        model.type = newType;
+        if (newType == 2 && model.categoryId == Guid.Empty)
+        {
+            var transferCat = categories.FirstOrDefault(c => c.Name.Contains("Переказ"));
+            if (transferCat != null) model.categoryId = Guid.Parse(transferCat.Id.ToString());
+        }
+        StateHasChanged();
+    }
+
+    private string GetColorClass() => model.type switch
+    {
+        0 => "income-color",
+        1 => "expense-color",
+        2 => "transfer-color",
+        _ => "expense-color"
+    };
+
+    private async Task HandleSave()
+    {
+        if (model.amount <= 0 || model.walletid == Guid.Empty || model.categoryId == Guid.Empty) return;
+
+        if (model.type == 2 && (model.targetWalletId == null || model.targetWalletId == Guid.Empty)) return;
+
+        isSaving = true;
+        try
+        {
+            var successId = await FinancialService.CreateTransactionAsync(model);
+            if (successId.HasValue && successId.Value != Guid.Empty)
+            {
+                Nav.NavigateTo("/");
+            }
+        }
+        finally { isSaving = false; }
+    }
+}
