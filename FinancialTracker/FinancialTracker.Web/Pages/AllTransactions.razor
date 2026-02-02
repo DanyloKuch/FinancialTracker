@@ -1,0 +1,111 @@
+﻿@page "/transactions"
+@using FinancialTracker.Web.Models
+@using FinancialTracker.Web.Services
+@inject FinancialService FinancialService
+@inject NavigationManager Nav
+
+<div class="transactions-page">
+    <header class="page-header">
+        <button class="back-btn" @onclick='() => Nav.NavigateTo("/")'>←</button>
+        <h2 class="page-title">Всі транзакції</h2>
+        <button class="add-plus-btn" @onclick='() => Nav.NavigateTo("/add-transaction/1")'>+</button>
+    </header>
+
+    <div class="summary-section">
+        <div class="total-label">Всього операцій: @totalCount</div>
+    </div>
+
+    <div class="transactions-container">
+        @if (transactions == null)
+        {
+            <div class="loading-spinner">Завантаження...</div>
+        }
+        else if (!transactions.Any())
+        {
+            <div class="empty-state">Транзакцій поки немає</div>
+        }
+        else
+        {
+            <div class="transactions-grid">
+                @foreach (var tx in transactions)
+                {
+                    bool isIncome = tx.Type == 0;
+                    string accentColor = isIncome ? "#4caf50" : GetRandomAccentColor(tx.Id);
+
+                    <div class="transaction-card">
+                        <div class="icon-wrapper" style="border-color: @accentColor">
+                            <span class="icon">@(isIncome ? "💰" : "🛒")</span>
+                        </div>
+                        <div class="details">
+                            <div class="main-info">
+                                <span class="title">@(string.IsNullOrEmpty(tx.Comment) ? "Транзакція" : tx.Comment)</span>
+                                <span class="amount">@(isIncome ? "+" : "-")@tx.Amount.ToString("N0")</span>
+                            </div>
+                            <div class="sub-info">
+                                <span class="date">@tx.CreatedAt.ToString("dd.MM.yyyy HH:mm")</span>
+                                <span class="percent">@GetPercent(tx.Amount)%</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <footer class="pagination-footer">
+        <button class="pager-btn" disabled="@(currentPage == 1)" @onclick="PreviousPage">← Назад</button>
+        <span class="page-info">Сторінка @currentPage з @totalPages</span>
+        <button class="pager-btn" disabled="@(currentPage >= totalPages)" @onclick="NextPage">Вперед →</button>
+    </footer>
+</div>
+
+
+@code {
+    private List<TransactionDto> transactions;
+    private int totalCount = 0;
+    private int currentPage = 1;
+    private int pageSize = 15;
+    private int totalPages => (int)Math.Ceiling((double)totalCount / pageSize);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPage();
+    }
+
+    private async Task LoadPage()
+    {
+        var result = await FinancialService.GetTransactionsAsync(currentPage, pageSize);
+        transactions = result.Items;
+        totalCount = result.TotalCount;
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            await LoadPage();
+        }
+    }
+
+    private async Task PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            await LoadPage();
+        }
+    }
+
+    private string GetRandomAccentColor(Guid id)
+    {
+        var colors = new[] { "#ffeb3b", "#e91e63", "#f44336", "#00bcd4", "#9c27b0" };
+        var index = Math.Abs(id.GetHashCode()) % colors.Length;
+        return colors[index];
+    }
+
+    private string GetPercent(decimal amount)
+    {
+        return new Random().Next(5, 25).ToString();
+    }
+}

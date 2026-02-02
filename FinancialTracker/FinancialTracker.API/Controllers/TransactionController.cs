@@ -31,9 +31,9 @@ namespace FinancialTracker.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAllTransaction()
+        public async Task<IActionResult> GetAllTransaction([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
-            var transaction = await _transactionService.GetAllTransactionByUser();
+            var transaction = await _transactionService.GetAllTransactionByUser(page, pageSize);
             return Ok(transaction);
         }
 

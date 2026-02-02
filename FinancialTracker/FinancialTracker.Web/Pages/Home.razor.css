@@ -337,27 +337,69 @@
     }
 
 .transactions-list {
-    /* Встановлюємо максимальну висоту (наприклад, як у сусідніх панелей) */
     max-height: 500px;
     overflow-y: auto;
-    padding-right: 5px; /* Місце для скролбару */
+    padding-right: 5px; 
 }
 
-    /* Налаштування вигляду скролбару, щоб він був охайним у темній темі */
-    .transactions-list::-webkit-scrollbar {
-        width: 6px;
+.transactions-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.transactions-list::-webkit-scrollbar-track {
+    background: #1e1e1e;
+    border-radius: 10px;
+}
+
+.transactions-list::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 10px;
+}
+
+    .transactions-list::-webkit-scrollbar-thumb:hover {
+        background: #555;
     }
 
-    .transactions-list::-webkit-scrollbar-track {
-        background: #1e1e1e;
-        border-radius: 10px;
+
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 5px 0;
+    transition: opacity 0.2s;
+}
+
+    .section-header:hover {
+        opacity: 0.7;
     }
 
-    .transactions-list::-webkit-scrollbar-thumb {
-        background: #444;
-        border-radius: 10px;
+    .section-header h3 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 600;
     }
 
-        .transactions-list::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
+.view-all-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #888;
+    font-size: 0.9rem;
+}
+
+.arrow-icon {
+    font-size: 1.1rem;
+    color: var(--accent-color, #ffeb3b); 
+}
+
+.trans-item {
+    background: #1a1a1a;
+    border-radius: 16px;
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
