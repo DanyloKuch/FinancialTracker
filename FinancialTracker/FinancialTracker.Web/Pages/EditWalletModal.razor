@@ -1,0 +1,137 @@
+﻿@using FinancialTracker.Web.Models
+
+@if (IsVisible)
+{
+    <div class="modal-backdrop" @onclick="Close">
+        <div class="modal-window" @onclick:stopPropagation>
+            <div class="modal-header">
+                <h2 class="modal-title">Редагувати гаманець</h2>
+                <span class="modal-cancel" @onclick="Close">Скасувати</span>
+            </div>
+
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>Назва гаманця</label>
+                    <input type="text"
+                           placeholder="Змінити назву гаманця"
+                           @bind="Wallet.Name"
+                           @bind:event="oninput"
+                           class="dark-input" />
+                </div>
+
+                <div class="input-group">
+                    <label>Оберіть валюту</label>
+                    <select @bind="Wallet.CurrencyCode" class="dark-input custom-select-big">
+                        <option value="UAH">₴ Українська гривня</option>
+                        <option value="USD">$ Долар США</option>
+                        <option value="EUR">€ Євро</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-save-main" @onclick="HandleSave">Зберегти</button>
+                <button class="btn-delete-outline" @onclick="HandleDelete" @onclick:stopPropagation>Видалити</button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+        .modal-window.edit-modal {
+        width: 480px;
+        padding: 35px;
+        background: #222;
+        border-radius: 24px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }
+
+       .modal-header {
+        display: flex;
+        justify-content: space-between; 
+        align-items: center;
+        margin-bottom: 30px;
+        width: 100%;
+    }
+
+    .modal-title {
+        font-size: 22px;
+        font-weight: 700;
+        margin: 0;
+        flex-grow: 1;
+        text-align: left;
+    }
+
+    .modal-cancel-btn {
+        color: #5d9cec;
+        cursor: pointer;
+        font-size: 14px;
+        white-space: nowrap;
+        padding-left: 15px;
+    }
+     
+        .btn-delete-outline {
+        width: 100%;
+        background: transparent;
+        border: 1px solid #444;
+        padding: 16px;
+        border-radius: 14px;
+        font-weight: 600;
+        font-size: 16px;
+        color: #ff4d4d;
+        margin-top: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .btn-delete-outline:hover {
+            background: rgba(255, 77, 77, 0.1);
+            border-color: #ff4d4d;
+        }
+
+    .dark-input {
+        width: 100%;
+        background: #333;
+        border: 1px solid #444;
+        border-radius: 12px;
+        padding: 14px;
+        color: white;
+        margin-top: 5px;
+    }
+
+    .btn-save-main {
+        width: 100%;
+        background: #eee;
+        color: #111;
+        border: none;
+        padding: 16px;
+        border-radius: 14px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+</style>
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public WalletDto Wallet { get; set; } = new(); 
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<WalletDto> OnSave { get; set; }
+    [Parameter] public EventCallback<Guid> OnDelete { get; set; }
+
+    private async Task Close() => await OnClose.InvokeAsync();
+
+    private async Task HandleSave()
+    {
+        Console.WriteLine($"Attempting to save wallet: {Wallet.Name}"); 
+        if (!string.IsNullOrWhiteSpace(Wallet.Name))
+        {
+            await OnSave.InvokeAsync(Wallet);
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleDelete()
+    {
+        await OnDelete.InvokeAsync(Wallet.Id);
+    }
+}

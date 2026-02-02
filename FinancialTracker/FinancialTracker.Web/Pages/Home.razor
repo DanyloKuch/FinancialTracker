@@ -5,7 +5,7 @@
 @attribute [Authorize]
 @inject FinancialService FinancialService
 @inject NavigationManager Nav
-
+@inject NavigationManager Navigation
 <PageTitle>Головна - Financial Tracker</PageTitle>
 
 <div class="dashboard-wrapper">
@@ -17,13 +17,56 @@
             <div class="rate-item">🇺🇸 USD 42.95/43.45</div>
             <div class="rate-item">🇪🇺 EUR 50.35/50.98</div>
         </div>
-        <div class="wallet-select">Основний ▼</div>
+        <div class="wallet-container">
+            <div class="wallet-select" @onclick="ToggleDropdown">
+                @(selectedWallet?.Name ?? "Основний") ▼
+            </div>
+
+            @if (isDropdownOpen)
+            {
+                <div class="wallet-menu-popup">
+                    <div class="menu-title">Гаманець і валюта</div>
+
+                    <div class="wallet-list">
+                        <div class="wallet-option">
+                            <label class="radio-container">
+                                <input type="radio" name="wallet"
+                                       checked="@(selectedWallet?.Id == Guid.Empty)"
+                                       @onchange="() => SelectWallet(totalWallet)" />
+                                <span class="custom-radio"></span> <span class="wallet-name">Основний</span>
+                            </label>
+                        </div>
+
+                        @foreach (var wallet in wallets)
+                        {
+                            <div class="wallet-option">
+                                <label class="radio-container">
+                                    <input type="radio" name="wallet"
+                                           checked="@(selectedWallet?.Id == wallet.Id)"
+                                           @onchange="() => SelectWallet(wallet)" />
+                                    <span class="custom-radio"></span> <span class="wallet-name">
+                                        @wallet.Name @(wallet.CurrencyCode == "USD" ? "$" : wallet.CurrencyCode == "EUR" ? "€" : "₴")
+                                    </span>
+                                </label>
+                                <span class="edit-pen" @onclick="() => OpenEditModal(wallet)">✎</span>
+                            </div>
+                        }
+                    </div>
+
+                    <button class="btn-add-new" @onclick="OpenCreateModal" @onclick:stopPropagation>
+                        <span class="plus-icon">+</span> Новий гаманець
+                    </button>
+                </div>
+            }
+        </div>
     </header>
 
-    <div class="dashboard-content">
+        <div class="dashboard-content">
         <div class="balance-section">
             <span class="label">Поточний баланс</span>
-            <h1 class="balance-amount">@totalWalletBalance.ToString("N2") ₴</h1>
+            <h1 class="balance-amount">
+                @totalWalletBalance.ToString("N2") @GetCurrencySymbol()
+            </h1>
         </div>
 
         <div class="cards-row">
@@ -32,8 +75,8 @@
                     <button class="add-btn" @onclick='() => Nav.NavigateTo("/add-transaction/1")'>📅 + Додати</button>
                 </div>
                 <div class="card-bottom">
-                    <span>Витрати (за місяць)</span>
-                    <h3>@expenseSum.ToString("N2")₴</h3>
+                    <span>Витрати</span>
+                    <h3>@expenseSum.ToString("N2") @GetCurrencySymbol()</h3>
                 </div>
             </div>
 
@@ -42,37 +85,51 @@
                     <button class="add-btn" @onclick='() => Nav.NavigateTo("/add-transaction/0")'>📅 + Додати</button>
                 </div>
                 <div class="card-bottom">
-                    <span>Дохід (за місяць)</span>
-                    <h3>@incomeSum.ToString("N2")₴</h3>
+                    <span>Дохід</span>
+                    <h3>@incomeSum.ToString("N2") @GetCurrencySymbol()</h3>
                 </div>
             </div>
         </div>
 
         <div class="main-grid">
             <div class="grid-col">
-                <h3>Активні ліміти</h3>
+                <div class="header-inline">
+                    <h3>Активні ліміти</h3>
+                    <span class="edit-pen-main" @onclick='() => Navigation.NavigateTo("/limits-setup")'>✎</span>
+                </div>
+
                 <div class="panel dark-panel">
-                    @if (categories.Any())
+                    @if (categories != null && categories.Any())
                     {
-                        @foreach (var cat in categories)
+                        @foreach (var cat in categories.Where(c => c.TotalLimit > 0))
                         {
+                            var limit = cat.TotalLimit;
+                            var spent = cat.SpentAmount;
+                            var rawPercent = limit > 0 ? (double)spent / (double)limit * 100 : 0;
+                            var displayPercent = rawPercent > 100 ? 100 : rawPercent;
+                            string colorClass = rawPercent > 90 ? "red" : (rawPercent > 70 ? "orange" : "green");
                             <div class="limit-row">
                                 <div class="limit-header">
                                     <span>@cat.Name</span>
-                                    <span class="edit-pen">✎</span>
                                 </div>
                                 <div class="progress-track">
-                                    <div class="progress-fill green" style="width: 0%"></div>
+                                    <div class="progress-fill @colorClass"
+                                         style="width: @displayPercent.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)%">
+                                    </div>
                                 </div>
                                 <div class="limit-stats">
-                                    Ліміт: @cat.TotalLimit.ToString("N0") ₴
+                                    Витрачено: @spent.ToString("N0") / @limit.ToString("N0") ₴
                                 </div>
                             </div>
                         }
                     }
+                    else if (categories == null)
+                    {
+                        <p class="loading-text">Завантаження даних...</p>
+                    }
                     else
                     {
-                        <p class="loading-text">Немає категорій або завантаження...</p>
+                        <p class="loading-text">Ліміти не встановлені. Натисніть ✎ щоб налаштувати.</p>
                     }
                 </div>
             </div>
@@ -140,7 +197,17 @@
                 }
             </div>
         </div>
+        <CreateWalletModal IsVisible="showCreateModal"
+                           OnClose="() => showCreateModal = false"
+                           OnSave="HandleCreateWallet" />
+
+        <EditWalletModal IsVisible="showEditModal"
+                         Wallet="selectedWalletForEdit"
+                         OnClose="() => showEditModal = false"
+                         OnSave="HandleUpdateWallet"
+                         OnDelete="HandleDeleteWallet" />
     </div>
+
 
     <nav class="bottom-nav">
         <div class="nav-item active"><span class="nav-icon">👛</span><span>Баланс</span></div>
@@ -154,31 +221,357 @@
     </nav>
 </div>
 
+<style>
+    .wallet-container {
+        position: relative;
+        display: inline-block;
+    }
+
+    .wallet-select {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        border: 1px solid #444;
+    }
+
+    .wallet-menu-popup {
+        position: absolute;
+        top: 45px;
+        right: 0;
+        width: 240px;
+        background: #1e1e1e;
+        border: 1px solid #333;
+        border-radius: 12px;
+        padding: 16px;
+        z-index: 1000;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    }
+
+    .menu-title {
+        color: #888;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 14px;
+    }
+
+    .wallet-option {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .radio-container {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        color: #efefef;
+        font-size: 14px;
+        gap: 10px;
+    }
+
+        .radio-container input {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+    .custom-radio {
+        width: 18px;
+        height: 18px;
+        border: 2px solid #555;
+        border-radius: 50%;
+        display: inline-block;
+        position: relative;
+        background: transparent;
+        transition: all 0.2s ease-in-out;
+    }
+
+    .radio-container input:checked ~ .custom-radio {
+        background-color: white; 
+        border-color: white; 
+    }
+
+    .wallet-name {
+        color: #888;
+        transition: color 0.2s;
+    }
+
+    .radio-container input:checked ~ .wallet-name {
+        color: white; 
+    }
+
+    .edit-pen {
+        color: #555;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+
+        .edit-pen:hover {
+            color: white;
+        }
+
+    .btn-add-new {
+        width: 100%;
+        background: #2a2a2a;
+        border: 1px solid #3a3a3a;
+        color: #ddd;
+        padding: 10px;
+        border-radius: 8px;
+        margin-top: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+        .btn-add-new:hover {
+            background: #333;
+            color: white;
+        }
+
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(5px);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+    }
+
+    .header-inline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between; 
+        margin-bottom: 10px;
+    }
+
+        .header-inline h3 {
+            margin: 0; 
+        }
+
+    .edit-pen-main {
+        cursor: pointer;
+        font-size: 18px;
+        color: #888;
+        transition: color 0.2s, transform 0.2s;
+        padding: 5px;
+    }
+        .edit-pen-main:hover {
+            color: white;
+            transform: scale(1.2); 
+        }
+
+    .progress-fill {
+        height: 100%;
+        transition: width 0.3s ease; 
+        width: 0; 
+    }
+    
+    .progress-fill.green {
+        background-color: #4ae38c;
+    }
+
+    .progress-fill.orange {
+        background-color: #ffcc00;
+    }
+
+    .progress-fill.red {
+        background-color: #ff4d4d;
+    }
+</style>
+
+
 @code {
     private decimal totalWalletBalance = 0;
     private decimal incomeSum = 0; 
     private decimal expenseSum = 0; 
 
+    private List<WalletDto> wallets = new();
+    private WalletDto? selectedWallet;
+    private bool isDropdownOpen = false;
+    private WalletDto totalWallet = new WalletDto { Id = Guid.Empty, Name = "Основний" };
+
     private List<CategoryDto> categories = new();
+    private List<TransactionDto> allTransactions = new();
     private List<TransactionDto> recentTransactions = new();
     private int totalTransactionsCount = 0;
     private List<GroupDto> groups = new();
     private GroupDto? firstGroup;
 
+    private string GetCurrencySymbol()
+    {
+        if (selectedWallet?.Id == Guid.Empty) return "₴";
+
+        return selectedWallet?.CurrencyCode switch
+        {
+            "USD" => "$",
+            "EUR" => "€",
+            "UAH" => "₴",
+            _ => selectedWallet?.CurrencyCode ?? "₴" 
+        };
+    }
+
     protected override async Task OnInitializedAsync()
     {
-        var wallets = await FinancialService.GetWalletsAsync();
-        totalWalletBalance = wallets.Sum(w => w.Balance);
+        var fetchedWallets = await FinancialService.GetWalletsAsync();
+        wallets = fetchedWallets ?? new List<WalletDto>();
+        selectedWallet = totalWallet;
+        allTransactions = await FinancialService.GetTransactionsAsync() ?? new List<TransactionDto>();
+        categories = await FinancialService.GetCategoriesAsync() ?? new List<CategoryDto>();
+        
 
         var pagedResult = await FinancialService.GetTransactionsAsync(page: 1, pageSize: 20);
         recentTransactions = pagedResult.Items;
         totalTransactionsCount = pagedResult.TotalCount;
 
         categories = await FinancialService.GetCategoriesAsync();
+        if (categories != null && recentTransactions != null)
+        {
+            foreach (var cat in categories)
+            {
+                cat.SpentAmount = recentTransactions
+                    .Where(t => t.Type == 1 && t.CategoryId == cat.Id)
+                    .Sum(t => t.Amount);
+            }
+        }
+
         groups = await FinancialService.GetGroupsAsync();
         firstGroup = groups.FirstOrDefault();
+        UpdateDisplayBalance();
+    }
+   
+    private void ToggleDropdown()
+    {
+        showCreateModal = false;
+        isDropdownOpen = !isDropdownOpen;
+    }
 
-        incomeSum = 0;
-        expenseSum = 0;
+    private void SelectWallet(WalletDto wallet)
+    {
+        selectedWallet = wallet;
+        UpdateDisplayBalance();
+        isDropdownOpen = false; 
+    }
+
+    private void UpdateDisplayBalance()
+    {
+        if (selectedWallet?.Id == Guid.Empty)
+        {
+            totalWalletBalance = wallets.Sum(w => w.Balance);
+            incomeSum = allTransactions.Where(t => t.Type == 0).Sum(t => t.Amount);
+            expenseSum = allTransactions.Where(t => t.Type == 1).Sum(t => t.Amount);
+            recentTransactions = allTransactions.OrderByDescending(t => t.CreatedAt).Take(10).ToList();
+        }
+        else
+        {
+            totalWalletBalance = selectedWallet?.Balance ?? 0;
+            incomeSum = (selectedWallet?.Id == Guid.Empty)
+        ? allTransactions.Where(t => t.Type == 0).Sum(t => t.Amount)
+        : allTransactions.Where(t => t.Type == 0 && t.WalletId == selectedWallet.Id).Sum(t => t.Amount);
+
+            expenseSum = (selectedWallet?.Id == Guid.Empty)
+                ? allTransactions.Where(t => t.Type == 1).Sum(t => t.Amount)
+                : allTransactions.Where(t => t.Type == 1 && t.WalletId == selectedWallet.Id).Sum(t => t.Amount);
+        
+            recentTransactions = allTransactions
+                .Where(t => t.WalletId == selectedWallet.Id)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToList();
+        }
+
+        if (categories != null)
+        {
+            foreach (var cat in categories)
+            {
+                cat.SpentAmount = allTransactions
+                    .Where(t => t.Type == 1 && t.CategoryId == cat.Id)
+                    .Sum(t => t.Amount);
+            }
+        }
+    }
+
+    private bool showCreateModal = false;
+
+    private void OpenCreateModal()
+    {
+        isDropdownOpen = false;
+        showCreateModal = true;
+        StateHasChanged();
+    }
+
+
+    private async Task HandleCreateWallet(WalletCreateRequest request)
+    {
+        var result = await FinancialService.CreateWalletAsync(request);
+
+        if (result != null)
+        {
+            var updatedWallets = await FinancialService.GetWalletsAsync();
+            wallets = updatedWallets.ToList();
+            showCreateModal = false;
+            isDropdownOpen = false;
+            UpdateDisplayBalance();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private bool showEditModal = false;
+    private WalletDto selectedWalletForEdit = new();
+
+    private void OpenEditModal(WalletDto wallet)
+    {
+        isDropdownOpen = false;
+        selectedWalletForEdit = new WalletDto
+            {
+                Id = wallet.Id,
+                Name = wallet.Name,
+                Balance = wallet.Balance,
+                CurrencyCode = wallet.CurrencyCode,
+                Type = wallet.Type 
+            };
+        showEditModal = true;
+    }
+
+    private async Task HandleUpdateWallet(WalletDto updatedWallet)
+    {
+        var success = await FinancialService.UpdateWalletAsync(updatedWallet);
+
+        if (success)
+        {
+            var freshWallets = await FinancialService.GetWalletsAsync();
+            wallets = freshWallets.ToList();
+            if (selectedWallet?.Id == updatedWallet.Id)
+            {
+                selectedWallet = wallets.FirstOrDefault(w => w.Id == updatedWallet.Id);
+            }
+
+            showEditModal = false; 
+            UpdateDisplayBalance();
+            StateHasChanged(); 
+        }
+    }
+
+    private async Task HandleDeleteWallet(Guid walletId)
+    {
+        var confirmed = await FinancialService.DeleteWalletAsync(walletId);
+        if (confirmed)
+        {
+            wallets = await FinancialService.GetWalletsAsync();
+            showEditModal = false;
+            StateHasChanged();
+        }
     }
 }
+

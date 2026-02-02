@@ -8,5 +8,7 @@
         public string Comment { get; set; } = "";
         public DateTime CreatedAt { get; set; }
         public Guid? CategoryId { get; set; }
+        public Guid WalletId { get; set; }
+        public Guid? TargetWalletId { get; set; }
     }
 }

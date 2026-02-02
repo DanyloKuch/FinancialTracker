@@ -28,11 +28,60 @@ namespace FinancialTracker.Web.Services
         public async Task<List<WalletDto>> GetWalletsAsync()
         {
             await SetTokenAsync();
-            try 
+            try
             {
-                return await _http.GetFromJsonAsync<List<WalletDto>>("api/v1/Wallets") ?? new List<WalletDto>();
+                var response = await _http.GetFromJsonAsync<List<WalletDto>>("api/v1/Wallets");
+                return response ?? new List<WalletDto>();
             }
-            catch { return new List<WalletDto>(); }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching wallets: {ex.Message}");
+                return new List<WalletDto>();
+            }
+        }
+        public async Task<WalletDto?> CreateWalletAsync(WalletCreateRequest request)
+        {
+            await SetTokenAsync(); 
+            try
+            {
+                var response = await _http.PostAsJsonAsync("api/v1/Wallets", request);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<WalletDto>();
+                }
+            }
+            catch { return null; }
+
+            return null;
+        }
+        public async Task<bool> UpdateWalletAsync(WalletDto wallet)
+        {
+            await SetTokenAsync();
+            try
+            {
+                var response = await _http.PutAsJsonAsync($"api/v1/Wallets/{wallet.Id}", wallet);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                }
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+        }
+        public async Task<bool> DeleteWalletAsync(Guid walletId)
+        {
+            await SetTokenAsync(); 
+            try
+            {
+                var response = await _http.DeleteAsync($"api/v1/Wallets/{walletId}");
+                return response.IsSuccessStatusCode;
+            }
+            catch { return false; }
         }
 
         public async Task<PagedResult<TransactionDto>> GetTransactionsAsync(int page = 1, int pageSize = 20)
