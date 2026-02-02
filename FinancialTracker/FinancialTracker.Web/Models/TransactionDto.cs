@@ -7,5 +7,8 @@
         public int Type { get; set; } // 0=Income, 1=Expense, 2=Transfer
         public string Comment { get; set; } = "";
         public DateTime CreatedAt { get; set; }
+        public Guid? CategoryId { get; set; }
+        public Guid WalletId { get; set; }
+        public Guid? TargetWalletId { get; set; }
     }
 }

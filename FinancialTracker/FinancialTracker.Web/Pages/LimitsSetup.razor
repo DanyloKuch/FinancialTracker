@@ -1,0 +1,229 @@
+﻿@page "/limits-setup"
+@using FinancialTracker.Web.Models
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<div class="setup-wrapper">
+    <div class="setup-header">
+        <span class="back-arrow" @onclick='() => Navigation.NavigateTo("/")'>←</span>
+        <h2>Налаштування лімітів</h2>
+    </div>
+    <div class="plan-summary">
+        <div class="plan-text">
+            <span>Планові витрати</span>
+            <span class="total-amount">@categories.Sum(c => c.TotalLimit).ToString("N0") ₴</span>
+        </div>
+        <div class="multi-progress">
+            @foreach (var cat in categories.Where(c => c.TotalLimit > 0))
+            {
+                <div class="progress-segment"
+                     style="width: @(GetGlobalPercent(cat))%; background-color: @GetCategoryColor(cat.Name);">
+                </div>
+            }
+        </div>
+    </div>
+    <div class="categories-grid">
+        @foreach (var cat in categories)
+        {
+            <div class="cat-card">
+                <div class="cat-info">
+                    <div class="icon-circle" style="border-color: @GetCategoryColor(cat.Name)">
+                        @GetCategoryEmoji(cat.Name)
+                    </div>
+                    <span class="cat-label">@cat.Name</span>
+                </div>
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <input type="number" min="0" @bind="cat.TotalLimit" @bind:event="oninput" class="limit-input" />
+                        <div class="input-line"></div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <button class="btn-continue" @onclick="SaveAllLimits">Продовжити</button>
+</div>
+
+<style>
+    .setup-wrapper {
+        background: #111;
+        color: white;
+        padding: 20px;
+        min-height: 100vh;
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .setup-header {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .back-arrow {
+        font-size: 24px;
+        cursor: pointer;
+    }
+
+    .plan-summary {
+        margin-bottom: 40px;
+    }
+
+    .plan-text {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        font-size: 18px;
+        margin-bottom: 12px;
+    }
+
+    .total-amount {
+        font-weight: bold;
+        font-size: 28px;
+    }
+
+    .multi-progress {
+        display: flex;
+        height: 12px;
+        background: #333;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .progress-segment {
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+
+    .categories-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+
+    .cat-card {
+        background: #1e1e1e;
+        padding: 12px 15px;
+        border-radius: 18px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 70px;
+    }
+
+    .cat-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .icon-circle {
+        width: 42px;
+        height: 42px;
+        border: 2px solid;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        background: rgba(255,255,255,0.03);
+    }
+
+    .cat-label {
+        font-size: 15px;
+        color: #efefef;
+    }
+
+    .input-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    .input-wrapper {
+        width: 70px;
+    }
+
+    .limit-input {
+        background: transparent;
+        border: none !important; 
+        color: white;
+        text-align: right;
+        width: 100%;
+        font-size: 17px;
+        outline: none !important;
+        padding: 0;
+    }
+
+    .input-line {
+        height: 1px;
+        background: #555;
+        width: 100%;
+        margin-top: 2px;
+    }
+
+    .btn-continue {
+        width: 100%;
+        background: #e0e0e0;
+        color: black;
+        border: none;
+        padding: 16px;
+        border-radius: 30px;
+        font-weight: bold;
+        font-size: 16px;
+        margin-top: 35px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+        .btn-continue:active {
+            background: #bbb;
+        }
+</style>
+
+@code {
+    private List<CategoryDto> categories = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Http.GetFromJsonAsync<List<CategoryDto>>("api/v1/Categories");
+        if (result != null) categories = result;
+    }
+
+    private async Task SaveAllLimits()
+    {
+        var tasks = categories.Select(cat => Http.PutAsJsonAsync($"api/v1/Categories/{cat.Id}", cat));
+        await Task.WhenAll(tasks);
+        Navigation.NavigateTo("/");
+    }
+
+    private string GetGlobalPercent(CategoryDto cat)
+    {
+        var total = categories.Sum(c => c.TotalLimit);
+        if (total == 0) return "0";
+        return ((double)cat.TotalLimit / (double)total * 100).ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private string GetCategoryColor(string name) => name?.ToLower() switch
+    {
+        "продукти" => "#FFD700",
+        "покупки" => "#A020F0",
+        "заклади харчування" => "#00CED1",
+        "транспорт" => "#FF69B4",
+        "здоров'я" => "#FF4500",
+        "підписки" => "#4CAF50",
+        _ => "#808080"
+    };
+
+    private string GetCategoryEmoji(string name) => name?.ToLower() switch
+    {
+        "продукти" => "🛒",
+        "покупки" => "🛍️",
+        "заклади харчування" => "🍴",
+        "транспорт" => "🚗",
+        "здоров'я" => "❤️",
+        "підписки" => "🏷️",
+        _ => "📦"
+    };
+}
