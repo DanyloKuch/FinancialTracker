@@ -72,7 +72,7 @@
         <div class="cards-row">
             <div class="action-card expense-card">
                 <div class="card-top">
-                    <button class="add-btn" @onclick='() => Nav.NavigateTo("/add-transaction")'>📅 + Додати</button>
+                    <button class="add-btn" @onclick='() => Nav.NavigateTo("/add-transaction/1")'>📅 + Додати</button>
                 </div>
                 <div class="card-bottom">
                     <span>Витрати</span>
@@ -82,7 +82,7 @@
 
             <div class="action-card income-card">
                 <div class="card-top">
-                    <button class="add-btn">📅 + Додати</button>
+                    <button class="add-btn" @onclick='() => Nav.NavigateTo("/add-transaction/0")'>📅 + Додати</button>
                 </div>
                 <div class="card-bottom">
                     <span>Дохід</span>
@@ -135,23 +135,29 @@
             </div>
 
             <div class="grid-col">
-                <h3 style="position: sticky; top: 0; background: var(--bg-color); z-index: 1;">Останні транзакції</h3>
+                <div class="section-header" @onclick='() => Nav.NavigateTo("/transactions")' style="cursor: pointer;">
+                    <h3>Останні транзакції</h3>
+                    <div class="view-all-action">
+                        <span>Всі (@totalTransactionsCount)</span>
+                        <span class="arrow-icon">→</span>
+                    </div>
+                </div>
+
                 <div class="transactions-list">
                     @if (recentTransactions.Any())
                     {
                         @foreach (var tx in recentTransactions)
                         {
                             bool isIncome = tx.Type == 0;
-                            bool isExpense = tx.Type == 1;
-                            string sign = isIncome ? "+" : (isExpense ? "-" : "");
+                            string sign = isIncome ? "+" : "-";
                             string colorClass = isIncome ? "text-green" : "text-white";
-                            string icon = isIncome ? "💰" : (isExpense ? "🛒" : "↔️");
+                            string icon = isIncome ? "💰" : "🛒";
 
                             <div class="trans-item">
                                 <div class="trans-icon-circle">@icon</div>
                                 <div class="trans-details">
-                                    <div class="trans-title">@(string.IsNullOrEmpty(tx.Comment) ? "Без коментаря" : tx.Comment)</div>
-                                    <div class="trans-date">@tx.CreatedAt.ToString("dd MMMM yyyy")</div>
+                                    <div class="trans-title">@(string.IsNullOrEmpty(tx.Comment) ? "Транзакція" : tx.Comment)</div>
+                                    <div class="trans-date">@tx.CreatedAt.ToString("dd MMMM")</div>
                                 </div>
                                 <div class="trans-sum @colorClass">@sign@tx.Amount.ToString("N0")₴</div>
                             </div>
@@ -206,7 +212,10 @@
     <nav class="bottom-nav">
         <div class="nav-item active"><span class="nav-icon">👛</span><span>Баланс</span></div>
         <div class="nav-item"><span class="nav-icon">📈</span><span>Статистика</span></div>
-        <div class="nav-item center-btn"><button class="plus-btn" @onclick='() => Nav.NavigateTo("/add-transaction")'>+</button><span>Додати</span></div>
+        <div class="nav-item center-btn">
+            <button class="plus-btn" @onclick='() => Nav.NavigateTo("/add-transaction/1")'>+</button>
+            <span>Додати</span>
+        </div>
         <div class="nav-item"><span class="nav-icon">👥</span><span>Групи</span></div>
         <div class="nav-item"><span class="nav-icon">•••</span><span>Більше</span></div>
     </nav>
@@ -386,8 +395,8 @@
 
 @code {
     private decimal totalWalletBalance = 0;
-    private decimal incomeSum = 0;
-    private decimal expenseSum = 0;
+    private decimal incomeSum = 0; 
+    private decimal expenseSum = 0; 
 
     private List<WalletDto> wallets = new();
     private WalletDto? selectedWallet;
@@ -397,6 +406,7 @@
     private List<CategoryDto> categories = new();
     private List<TransactionDto> allTransactions = new();
     private List<TransactionDto> recentTransactions = new();
+    private int totalTransactionsCount = 0;
     private List<GroupDto> groups = new();
     private GroupDto? firstGroup;
 
@@ -422,10 +432,9 @@
         categories = await FinancialService.GetCategoriesAsync() ?? new List<CategoryDto>();
         
 
-        var allTx = await FinancialService.GetTransactionsAsync();
-        incomeSum = allTx.Where(t => t.Type == 0).Sum(t => t.Amount);
-        expenseSum = allTx.Where(t => t.Type == 1).Sum(t => t.Amount);
-        recentTransactions = allTx.OrderByDescending(t => t.CreatedAt).ToList();
+        var pagedResult = await FinancialService.GetTransactionsAsync(page: 1, pageSize: 20);
+        recentTransactions = pagedResult.Items;
+        totalTransactionsCount = pagedResult.TotalCount;
 
         categories = await FinancialService.GetCategoriesAsync();
         if (categories != null && recentTransactions != null)

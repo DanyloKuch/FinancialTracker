@@ -3,6 +3,7 @@ using FinancialTracker.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using FinancialTracker.Domain.Interfaces;
 using FinancialTracker.Infrastructure.Entities;
+using FinancialTracker.Application.DTOs;
 
 namespace FinancialTracker.Infrastructure.Repositories
 {
@@ -45,11 +46,18 @@ namespace FinancialTracker.Infrastructure.Repositories
         }
 
 
-        public async Task<Result<IReadOnlyList<Transaction>>> GetAllTransactionByUser(Guid userId)
+        public async Task<Result<(IReadOnlyList<Transaction> Items, int TotalCount)>> GetAllTransactionByUser(Guid userId, int page, int pageSize)
         {
-            var transactionEntities = await _context.Transactions
+            var query =  _context.Transactions
                 .AsNoTracking()
-                .Where(t => t.UserId == userId)
+                .Where(t => t.UserId == userId);
+
+            var totalCount = await query.CountAsync();
+
+            var transactionEntities = await query
+                .OrderByDescending(t => t.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
             var transactions = transactionEntities
@@ -57,7 +65,7 @@ namespace FinancialTracker.Infrastructure.Repositories
                     id: t.Id,
                     userId: t.UserId,
                     walletid: t.WalletId,
-                    targetWalletId: t.TargetWalletId, 
+                    targetWalletId: t.TargetWalletId,
                     categoryId: t.CategoryId,
                     groupId: t.GroupId,
                     amount: t.Amount,
@@ -65,11 +73,12 @@ namespace FinancialTracker.Infrastructure.Repositories
                     exchangeRate: t.ExchangeRate,
                     commission: t.Commission ?? 0m,
                     comment: t.Comment ?? string.Empty,
-                    createdAt: t.CreatedAt)).Where(r => r.IsSuccess)
+                    createdAt: t.CreatedAt))
+                .Where(r => r.IsSuccess)
                 .Select(r => r.Value)
                 .ToList();
 
-            return Result<IReadOnlyList<Transaction>>.Success(transactions);
+            return Result<(IReadOnlyList<Transaction>, int)>.Success((transactions, totalCount));
         }
 
         public async Task<Result<Guid>> Create(Transaction transaction)

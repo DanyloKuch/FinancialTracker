@@ -5,6 +5,7 @@ using FinancialTracker.Domain.Interfaces;
 using FinancialTracker.Domain.Models;
 using FinancialTracker.Domain.Shared;
 using System.Collections.Generic;
+using System.IO.Pipelines;
 
 namespace FinancialTracker.Application.Services
 {
@@ -21,13 +22,25 @@ namespace FinancialTracker.Application.Services
             _currentUserService = currentUserService;
         }
 
-        public async Task<Result<IReadOnlyList<Transaction>>> GetAllTransactionByUser()
+        public async Task<Result<PagedResult<Transaction>>> GetAllTransactionByUser(int page, int pageSize)
         {
             var userId = _currentUserService.UserId;
-            var transactions = await _transactionRepository.GetAllTransactionByUser(userId);
+            var repoResult = await _transactionRepository.GetAllTransactionByUser(userId, page, pageSize);
+            
+            if (repoResult.IsFailure)
+            {
+                return Result<PagedResult<Transaction>>.Failure(repoResult.Error);
+            }
 
-            return transactions;
+            var (items, totalCount) = repoResult.Value;
 
+            var pagedResult = new PagedResult<Transaction>
+            {
+                Items = items,
+                TotalCount = totalCount
+            };
+
+            return Result<PagedResult<Transaction>>.Success(pagedResult);
         }
 
         public async Task<Result<TransactionResponse>> GetTransactionById(Guid id)

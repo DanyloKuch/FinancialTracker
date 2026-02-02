@@ -15,7 +15,7 @@ namespace FinancialTracker.Web.Services
             _http = http;
             _localStorage = localStorage;
         }
-
+            
         private async Task SetTokenAsync()
         {
             var token = await _localStorage.GetItemAsync<string>("authToken");
@@ -84,15 +84,22 @@ namespace FinancialTracker.Web.Services
             catch { return false; }
         }
 
-        public async Task<List<TransactionDto>> GetTransactionsAsync()
+        public async Task<PagedResult<TransactionDto>> GetTransactionsAsync(int page = 1, int pageSize = 20)
         {
             await SetTokenAsync();
             try
             {
-                var response = await _http.GetFromJsonAsync<ApiResponse<List<TransactionDto>>>("api/v1/Transaction");
-                return response != null && response.IsSuccess ? response.Value : new List<TransactionDto>();
+                var url = $"api/v1/Transaction?page={page}&pageSize={pageSize}";
+
+                var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<TransactionDto>>>(url);
+                return response != null && response.IsSuccess 
+                    ? response.Value 
+                    : new PagedResult<TransactionDto>();
             }
-            catch { return new List<TransactionDto>(); }
+            catch
+            {
+                return new PagedResult<TransactionDto>();
+            }
         }
 
         public async Task<List<CategoryDto>> GetCategoriesAsync()
