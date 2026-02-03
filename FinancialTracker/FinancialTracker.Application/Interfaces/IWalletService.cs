@@ -14,5 +14,6 @@ namespace FinancialTracker.Application.Interfaces
         Task<Result<WalletResponse>> GetWalletByIdAsync(Guid id);
         Task<Result<WalletResponse>> UpdateWalletAsync(Guid id, WalletRequest request);
         Task<Result> DeleteWalletAsync(Guid id);
+        Task<Result<WalletWithStatsResponse>> GetWalletWithStatsAsync(Guid id);
     }
 }

@@ -83,5 +83,18 @@ namespace FinancialTracker.API.Controllers
 
             return NoContent();
         }
+        // GET: api/v1/wallets/{id}/details
+        [HttpGet("{id:guid}/details")]
+        public async Task<IActionResult> GetWithStats(Guid id)
+        {
+            var result = await _walletService.GetWalletWithStatsAsync(id);
+
+            if (result.IsFailure)
+            {
+                return NotFound(result.Error);
+            }
+
+            return Ok(result.Value);
+        }
     }
 }

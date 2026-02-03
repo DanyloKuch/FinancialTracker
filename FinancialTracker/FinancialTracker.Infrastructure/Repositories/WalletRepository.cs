@@ -7,6 +7,7 @@ using FinancialTracker.Domain.Interfaces;
 using FinancialTracker.Domain.Models;
 using FinancialTracker.Domain.Shared;
 using FinancialTracker.Infrastructure.Entities;
+using FinancialTracker.Domain.Enums;
 
 namespace FinancialTracker.Infrastructure.Repositories
 {
@@ -131,6 +132,51 @@ namespace FinancialTracker.Infrastructure.Repositories
             await _context.SaveChangesAsync();
 
             return Result.Success();
+        }
+        
+
+        public async Task<(Wallet Wallet, decimal Income, decimal Expense)?> GetWalletWithStatsAsync(Guid walletId, Guid userId)
+        {
+           
+            var walletEntity = await _context.Wallets
+                .AsNoTracking() 
+                .FirstOrDefaultAsync(w => w.Id == walletId && w.UserId == userId);
+
+            if (walletEntity == null)
+                return null;
+
+           
+            var expense = await _context.Transactions
+                .Where(t => t.WalletId == walletId &&
+                           (t.Type == TransactionType.Expense || t.Type == TransactionType.Transfer))
+                .SumAsync(t => t.Amount + (t.Commission ?? 0));
+
+         
+            var incomeDirect = await _context.Transactions
+                .Where(t => t.WalletId == walletId && t.Type == TransactionType.Income)
+                .SumAsync(t => t.Amount - (t.Commission ?? 0));
+
+            var incomeTransfer = await _context.Transactions
+                .Where(t => t.TargetWalletId == walletId && t.Type == TransactionType.Transfer)
+                .SumAsync(t => t.Amount);
+
+            decimal totalIncome = incomeDirect + incomeTransfer;
+
+            var walletResult = Wallet.Create(
+                walletEntity.Id,
+                walletEntity.UserId,
+                walletEntity.Name,
+                walletEntity.Type,
+                walletEntity.Balance,
+                walletEntity.CurrencyCode,
+                walletEntity.IsArchived,
+                walletEntity.UpdatedAt
+            );
+
+            
+            if (walletResult.IsFailure) return null;
+
+            return (walletResult.Value, totalIncome, expense);
         }
     }
 }
