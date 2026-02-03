@@ -140,5 +140,63 @@ namespace FinancialTracker.Web.Services
                 return null;
             }
         }
+
+
+        public async Task<FinancialSummaryResponse> GetFinancialSummaryAsync()
+        {
+            await SetTokenAsync();
+            try
+            {
+                var response = await _http.GetFromJsonAsync<FinancialSummaryResponse>("api/v1/Transaction/summary");
+
+                Console.WriteLine($"Direct Response: Income={response?.TotalIncome}, Expense={response?.TotalExpense}");
+
+                return response ?? new FinancialSummaryResponse(0, 0);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching summary: {ex.Message}");
+
+                try
+                {
+                    var wrappedResponse = await _http.GetFromJsonAsync<ApiResponse<FinancialSummaryResponse>>("api/v1/Transaction/summary");
+                    return wrappedResponse != null && wrappedResponse.IsSuccess
+                        ? wrappedResponse.Value
+                        : new FinancialSummaryResponse(0, 0);
+                }
+                catch
+                {
+                    return new FinancialSummaryResponse(0, 0);
+                }
+            }
+        }
+
+        public async Task<bool> UpdateTransactionAsync(Guid transactionId, TransactionUpdateDto model)
+        {
+            await SetTokenAsync();
+            try
+            {
+                var response = await _http.PutAsJsonAsync($"api/v1/Transaction/{transactionId}", model);
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> DeleteTransactionAsync(Guid transactionId)
+        {
+            await SetTokenAsync();
+            try
+            {
+                var response = await _http.DeleteAsync($"api/v1/Transaction/{transactionId}");
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 }

@@ -1,9 +1,10 @@
-﻿using FinancialTracker.Domain.Models;
-using FinancialTracker.Domain.Shared;
-using Microsoft.EntityFrameworkCore;
+﻿using FinancialTracker.Application.DTOs;
+using FinancialTracker.Domain.Enums;
 using FinancialTracker.Domain.Interfaces;
+using FinancialTracker.Domain.Models;
+using FinancialTracker.Domain.Shared;
 using FinancialTracker.Infrastructure.Entities;
-using FinancialTracker.Application.DTOs;
+using Microsoft.EntityFrameworkCore;
 
 namespace FinancialTracker.Infrastructure.Repositories
 {
@@ -130,6 +131,19 @@ namespace FinancialTracker.Infrastructure.Repositories
                 entity.TargetWalletId = transaction.TargetWalletId;
                 entity.CreatedAt = transaction.CreatedAt;
             }
+        }
+
+        public async Task<Result<Dictionary<TransactionType, decimal>>> GetTotalsGroupedByType(Guid userId)
+        {
+            var totals = await _context.Transactions
+                .AsNoTracking()
+                .Where(t => t.UserId == userId)
+                .Where(t => t.Type == TransactionType.Income || t.Type == TransactionType.Expense)
+                .GroupBy(t => t.Type)
+                .Select(g => new { Type = g.Key, Sum = g.Sum(t => t.Amount) })
+                .ToDictionaryAsync(x => x.Type, x => x.Sum);
+
+            return Result<Dictionary<TransactionType, decimal>>.Success(totals);
         }
     }
 }

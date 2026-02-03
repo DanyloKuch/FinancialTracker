@@ -15,11 +15,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("BlazorPolicy", policy =>
+    options.AddPolicy("AllowNextJS", policy =>
     {
-        policy.WithOrigins("https://localhost:7066")
+        policy.WithOrigins("http://localhost:3000") // Адреса фронтенду
+              .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowCredentials(); // ЦЕЙ РЯДОК ОБОВ'ЯЗКОВИЙ ДЛЯ 'include'
     });
 });
 
@@ -95,6 +96,8 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseCors("AllowNextJS");
 
 app.MapControllers();
 app.MapGroup("/api/v1/auth").MapIdentityApi<UserEntity>();

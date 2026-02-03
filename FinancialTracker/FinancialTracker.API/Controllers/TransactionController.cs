@@ -69,5 +69,16 @@ namespace FinancialTracker.API.Controllers
 
             return Ok();
         }
+
+        [HttpGet("summary")]
+        public async Task<IActionResult> GetSummary()
+        {
+            var result = await _transactionService.GetGeneralFinancialSummary();
+
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
     }
 }

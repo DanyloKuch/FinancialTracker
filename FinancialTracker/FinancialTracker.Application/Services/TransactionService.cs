@@ -317,5 +317,25 @@ namespace FinancialTracker.Application.Services
 
             return Result<TransactionResponse>.Success(response);
         }
+
+        public async Task<Result<FinancialSummaryResponse>> GetGeneralFinancialSummary()
+        {
+            var userId = _currentUserService.UserId;
+            var repoResult = await _transactionRepository.GetTotalsGroupedByType(userId);
+
+            if (repoResult.IsFailure)
+            {
+                return Result<FinancialSummaryResponse>.Failure(repoResult.Error);
+            }
+
+            var totals = repoResult.Value;
+
+            var response = new FinancialSummaryResponse(
+                TotalIncome: totals.GetValueOrDefault(TransactionType.Income, 0m),
+                TotalExpense: Math.Abs(totals.GetValueOrDefault(TransactionType.Expense, 0m))
+            );
+
+            return Result<FinancialSummaryResponse>.Success(response);
+        }
     }
 }

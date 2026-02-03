@@ -30,16 +30,24 @@
                 @foreach (var tx in transactions)
                 {
                     bool isIncome = tx.Type == 0;
+                    bool isTransfer = tx.Type == 2;
                     string accentColor = isIncome ? "#4caf50" : GetRandomAccentColor(tx.Id);
+                    string sign = isIncome ? "+" : "-";
 
-                    <div class="transaction-card">
+                    <div class="transaction-card" @onclick="() => OpenEditModal(tx)">
                         <div class="icon-wrapper" style="border-color: @accentColor">
-                            <span class="icon">@(isIncome ? "💰" : "🛒")</span>
+                            <span class="icon">@(isTransfer ? "⇄" : (isIncome ? "💰" : "🛒"))</span>
                         </div>
                         <div class="details">
                             <div class="main-info">
                                 <span class="title">@(string.IsNullOrEmpty(tx.Comment) ? "Транзакція" : tx.Comment)</span>
-                                <span class="amount">@(isIncome ? "+" : "-")@tx.Amount.ToString("N0")</span>
+                                <span class="amount">
+                                    @if (isTransfer)
+                                    {
+                                        <span>&lt;=&gt; </span>
+                                    }
+                                    @sign@Math.Abs(tx.Amount).ToString("N0")
+                                </span>
                             </div>
                             <div class="sub-info">
                                 <span class="date">@tx.CreatedAt.ToString("dd.MM.yyyy HH:mm")</span>
@@ -57,18 +65,106 @@
         <span class="page-info">Сторінка @currentPage з @totalPages</span>
         <button class="pager-btn" disabled="@(currentPage >= totalPages)" @onclick="NextPage">Вперед →</button>
     </footer>
+
+    @if (showEditModal && selectedTransaction != null)
+    {
+        <div class="modal-backdrop" @onclick="CloseEditModal">
+            <div class="modal-content" @onclick:stopPropagation>
+                <div class="modal-header">
+                    <h3>Редагування транзакції</h3>
+                    <button class="close-btn" @onclick="CloseEditModal">✕</button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Гаманець</label>
+                        <select @bind="editModel.WalletId" class="form-control">
+                            @foreach (var wallet in wallets)
+                            {
+                                <option value="@wallet.Id">@wallet.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Сума</label>
+                        <input type="number" @bind="editModel.Amount" class="form-control" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Категорія</label>
+                        <select @bind="editModel.CategoryId" class="form-control">
+                            @foreach (var cat in categories)
+                            {
+                                <option value="@cat.Id">@cat.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Коментар</label>
+                        <input type="text" @bind="editModel.Comment" class="form-control" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Цільовий гаманець (для переказу)</label>
+                        <select @bind="editModel.TargetWalletId" class="form-control">
+                            <option value="">Не обрано</option>
+                            @foreach (var wallet in wallets)
+                            {
+                                <option value="@wallet.Id">@wallet.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Курс обміну</label>
+                        <input type="number" step="0.01" @bind="editModel.ExchangeRate" class="form-control" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Комісія</label>
+                        <input type="number" step="0.01" @bind="editModel.Commission" class="form-control" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Тип транзакції</label>
+                        <select @bind="editModel.Type" class="form-control">
+                            <option value="0">Дохід</option>
+                            <option value="1">Витрата</option>
+                            <option value="2">Переказ</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn-delete" @onclick="DeleteTransaction">Видалити</button>
+                    <button class="btn-cancel" @onclick="CloseEditModal">Скасувати</button>
+                    <button class="btn-save" @onclick="SaveTransaction">Зберегти</button>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 
 @code {
     private List<TransactionDto> transactions;
+    private List<WalletDto> wallets = new();
+    private List<CategoryDto> categories = new();
     private int totalCount = 0;
     private int currentPage = 1;
     private int pageSize = 15;
     private int totalPages => (int)Math.Ceiling((double)totalCount / pageSize);
 
+    private bool showEditModal = false;
+    private TransactionDto selectedTransaction;
+    private TransactionUpdateDto editModel = new();
+
     protected override async Task OnInitializedAsync()
     {
+        wallets = await FinancialService.GetWalletsAsync();
+        categories = await FinancialService.GetCategoriesAsync();
         await LoadPage();
     }
 
@@ -94,6 +190,55 @@
         {
             currentPage--;
             await LoadPage();
+        }
+    }
+
+    private void OpenEditModal(TransactionDto transaction)
+    {
+        selectedTransaction = transaction;
+        editModel = new TransactionUpdateDto
+        {
+            WalletId = transaction.WalletId,
+            Amount = transaction.Amount,
+            CategoryId = transaction.CategoryId ?? Guid.Empty,
+            Comment = transaction.Comment,
+            TargetWalletId = transaction.TargetWalletId,
+            ExchangeRate = null,
+            Commission = null,
+            Type = transaction.Type
+        };
+        showEditModal = true;
+    }
+
+    private void CloseEditModal()
+    {
+        showEditModal = false;
+        selectedTransaction = null;
+    }
+
+    private async Task SaveTransaction()
+    {
+        if (selectedTransaction != null)
+        {
+            var success = await FinancialService.UpdateTransactionAsync(selectedTransaction.Id, editModel);
+            if (success)
+            {
+                await LoadPage();
+                CloseEditModal();
+            }
+        }
+    }
+
+    private async Task DeleteTransaction()
+    {
+        if (selectedTransaction != null)
+        {
+            var success = await FinancialService.DeleteTransactionAsync(selectedTransaction.Id);
+            if (success)
+            {
+                await LoadPage();
+                CloseEditModal();
+            }
         }
     }
 
