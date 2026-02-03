@@ -14,12 +14,14 @@ namespace FinancialTracker.Application.Services
         private readonly ICurrentUserService _currentUserService;
         public ITransactionRepository _transactionRepository;
         public IWalletRepository _walletRepository;
+        public IGroupRepository _groupRepository;
 
-        public TransactionService(IWalletRepository walletRepository, ITransactionRepository transactionRepository, ICurrentUserService currentUserService)
+        public TransactionService(IWalletRepository walletRepository, ITransactionRepository transactionRepository, ICurrentUserService currentUserService, IGroupRepository groupRepository)
         {
             _transactionRepository = transactionRepository;
             _walletRepository = walletRepository;
             _currentUserService = currentUserService;
+            _groupRepository = groupRepository;
         }
 
         public async Task<Result<PagedResult<Transaction>>> GetAllTransactionByUser(int page, int pageSize)
@@ -336,6 +338,26 @@ namespace FinancialTracker.Application.Services
             );
 
             return Result<FinancialSummaryResponse>.Success(response);
+        }
+
+        public async Task<Result<PagedResult<Transaction>>> GetTransactionByGroup(Guid groupId, int page, int pageSize)
+        {
+            var userId = _currentUserService.UserId;
+
+            var isUserInGroup = await _groupRepository.IsUserInGroup(userId, groupId);
+            if (isUserInGroup.IsFailure) return Result<PagedResult<Transaction>>.Failure(isUserInGroup.Error);
+
+            var repoResult = await _transactionRepository.GetAllTransactionByGroup(groupId, page, pageSize);
+
+            var (items, totalCount) = repoResult.Value;
+
+            var pagedResult = new PagedResult<Transaction>
+            {
+                Items = items,
+                TotalCount = totalCount
+            };
+
+            return Result<PagedResult<Transaction>>.Success(pagedResult);
         }
     }
 }

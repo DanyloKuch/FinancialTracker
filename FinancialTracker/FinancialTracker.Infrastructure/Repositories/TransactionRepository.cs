@@ -145,5 +145,40 @@ namespace FinancialTracker.Infrastructure.Repositories
 
             return Result<Dictionary<TransactionType, decimal>>.Success(totals);
         }
+
+        public async Task<Result<(IReadOnlyList<Transaction> Items, int TotalCount)>> GetAllTransactionByGroup(Guid groupId, int page, int pageSize)
+        {
+            var query = _context.Transactions
+                .AsNoTracking()
+                .Where(t => t.GroupId == groupId);
+
+            var totalCount = await query.CountAsync();
+
+            var transactionEntities = await query
+                .OrderByDescending(t => t.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var transactions = transactionEntities
+                .Select(t => Transaction.Create(
+                    id: t.Id,
+                    userId: t.UserId,
+                    walletid: t.WalletId,
+                    targetWalletId: t.TargetWalletId,
+                    categoryId: t.CategoryId,
+                    groupId: t.GroupId,
+                    amount: t.Amount,
+                    type: t.Type,
+                    exchangeRate: t.ExchangeRate,
+                    commission: t.Commission ?? 0m,
+                    comment: t.Comment ?? string.Empty,
+                    createdAt: t.CreatedAt))
+                .Where(r => r.IsSuccess)
+                .Select(r => r.Value)
+                .ToList();
+
+            return Result<(IReadOnlyList<Transaction>, int)>.Success((transactions, totalCount));
+        }
     }
 }
