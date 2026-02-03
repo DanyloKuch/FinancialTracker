@@ -67,5 +67,16 @@ namespace FinancialTracker.API.Controllers
 
             return NoContent();
         }
+
+        [HttpGet("{id}/total")]
+        public async Task<IActionResult> GetCategoryTotal(Guid id)
+        {
+            var result = await _categoryService.GetCategoryTotalAmountAsync(id);
+
+            if (!result.IsSuccess)
+                return NotFound(new { message = result.Error });
+
+            return Ok(new { CategoryId = id, TotalAmount = result.Value });
+        }
     }
 }

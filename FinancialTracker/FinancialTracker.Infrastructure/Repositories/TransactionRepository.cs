@@ -180,5 +180,13 @@ namespace FinancialTracker.Infrastructure.Repositories
 
             return Result<(IReadOnlyList<Transaction>, int)>.Success((transactions, totalCount));
         }
+
+        public async Task<decimal> GetTotalByCategoryIdAsync(Guid userId, Guid categoryId)
+        {
+            return await _context.Transactions
+                .AsNoTracking()
+                .Where(t => t.UserId == userId && t.CategoryId == categoryId)
+                .SumAsync(t => t.Amount);
+        }
     }
 }
