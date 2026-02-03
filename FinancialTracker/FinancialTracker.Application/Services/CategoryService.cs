@@ -8,11 +8,13 @@ namespace FinancialTracker.Application.Services
     public class CategoryService : ICategoryService
     {
         private readonly ICategoryRepository _repository;
+        private readonly ITransactionRepository _transactionRepository;
         private readonly ICurrentUserService _currentUserService;
 
-        public CategoryService(ICategoryRepository repository, ICurrentUserService currentUserService)
+        public CategoryService(ICategoryRepository repository, ITransactionRepository transactionRepository, ICurrentUserService currentUserService)
         {
             _repository = repository;
+            _transactionRepository = transactionRepository;
             _currentUserService = currentUserService;
         }
 
@@ -72,6 +74,18 @@ namespace FinancialTracker.Application.Services
 
             await _repository.DeleteAsync(id, CurrentUserId);
             return Result.Success();
+        }
+
+        public async Task<Result<decimal>> GetCategoryTotalAmountAsync(Guid categoryId)
+        {
+            var category = await _repository.GetByIdAsync(categoryId, CurrentUserId);
+
+            if (category == null)
+                return Result<decimal>.Failure("Category not found or access denied");
+
+            var total = await _transactionRepository.GetTotalByCategoryIdAsync(CurrentUserId, categoryId);
+
+            return Result<decimal>.Success(total);
         }
     }
 }
