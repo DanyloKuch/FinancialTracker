@@ -135,11 +135,43 @@ namespace FinancialTracker.Application.Services
           
             return Result<WalletResponse>.Success(response);
         }
+       
+
+        public async Task<Result<WalletWithStatsResponse>> GetWalletWithStatsAsync(Guid id)
+        {
+            var userId = _currentUserService.UserId;
+
+           
+            var data = await _walletRepository.GetWalletWithStatsAsync(id, userId);
+
+            if (data == null)
+            {
+                return Result<WalletWithStatsResponse>.Failure("Wallet not found or access denied.");
+            }
+
+          
+            var (wallet, income, expense) = data.Value;
+
+        
+            var response = new WalletWithStatsResponse(
+                wallet.Id,
+                wallet.Name,
+                wallet.Type,
+                wallet.Balance,
+                wallet.CurrencyCode,
+                income,      
+                expense,   
+                wallet.UpdatedAt
+            );
+
+            return Result<WalletWithStatsResponse>.Success(response);
+        }
 
         public async Task<Result> DeleteWalletAsync(Guid id)
         {
             var userId = _currentUserService.UserId;
             return await _walletRepository.DeleteAsync(id, userId);
         }
+
     }
 }
