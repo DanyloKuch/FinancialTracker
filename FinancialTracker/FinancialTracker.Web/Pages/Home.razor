@@ -216,7 +216,10 @@
             <button class="plus-btn" @onclick='() => Nav.NavigateTo("/add-transaction/1")'>+</button>
             <span>Додати</span>
         </div>
-        <div class="nav-item"><span class="nav-icon">👥</span><span>Групи</span></div>
+        <div class="nav-item" @onclick='() => Nav.NavigateTo("/groups")' style="cursor: pointer;">
+            <span class="nav-icon">👥</span>
+            <span>Групи</span>
+        </div>
         <div class="nav-item"><span class="nav-icon">•••</span><span>Більше</span></div>
     </nav>
 </div>

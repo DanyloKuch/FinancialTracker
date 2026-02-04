@@ -117,11 +117,27 @@ namespace FinancialTracker.Web.Services
             await SetTokenAsync();
             try
             {
-                return await _http.GetFromJsonAsync<List<GroupDto>>("api/v1/groups") ?? new List<GroupDto>();
-            }
-            catch { return new List<GroupDto>(); }
-        }
+                var responseString = await _http.GetStringAsync("api/v1/groups");
 
+                if (responseString.Trim().StartsWith("["))
+                {
+                    return System.Text.Json.JsonSerializer.Deserialize<List<GroupDto>>(responseString,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase })
+                        ?? new List<GroupDto>();
+                }
+
+                var apiResponse = System.Text.Json.JsonSerializer.Deserialize<ApiResponse<List<GroupDto>>>(responseString,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+
+                return apiResponse?.Value ?? new List<GroupDto>();
+            }
+            catch (Exception ex)
+            {
+                return new List<GroupDto>();
+            }
+
+
+        }
         public async Task<Guid?> CreateTransactionAsync(TransactionCreateDto model)
         {
             await SetTokenAsync();
@@ -140,5 +156,112 @@ namespace FinancialTracker.Web.Services
                 return null;
             }
         }
+
+        public async Task<bool> UpdateGroupAsync(GroupDto group)
+        {
+            await SetTokenAsync();
+            try
+            {
+                var response = await _http.PutAsJsonAsync($"api/v1/groups/{group.Id}", group);
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> DeleteGroupAsync(string groupId)
+        {
+            await SetTokenAsync();
+            try
+            {
+                var response = await _http.DeleteAsync($"api/v1/groups/{groupId}");
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async Task<GroupDto?> CreateGroupAsync(GroupDto newGroup)
+        {
+            await SetTokenAsync();
+
+            try
+            {
+                var response = await _http.PostAsJsonAsync("api/v1/groups", newGroup);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<GroupDto>();
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error creating group: {ex.Message}");
+                return null;
+            }
+        }
+        public async Task<FinancialSummaryResponse> GetFinancialSummaryAsync()
+        {
+            await SetTokenAsync();
+            try
+            {
+                var response = await _http.GetFromJsonAsync<FinancialSummaryResponse>("api/v1/Transaction/summary");
+
+                Console.WriteLine($"Direct Response: Income={response?.TotalIncome}, Expense={response?.TotalExpense}");
+
+                return response ?? new FinancialSummaryResponse(0, 0);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching summary: {ex.Message}");
+
+                try
+                {
+                    var wrappedResponse = await _http.GetFromJsonAsync<ApiResponse<FinancialSummaryResponse>>("api/v1/Transaction/summary");
+                    return wrappedResponse != null && wrappedResponse.IsSuccess
+                        ? wrappedResponse.Value
+                        : new FinancialSummaryResponse(0, 0);
+                }
+                catch
+                {
+                    return new FinancialSummaryResponse(0, 0);
+                }
+            }
+        }
+
+        public async Task<bool> UpdateTransactionAsync(Guid transactionId, TransactionUpdateDto model)
+        {
+            await SetTokenAsync();
+            try
+            {
+                var response = await _http.PutAsJsonAsync($"api/v1/Transaction/{transactionId}", model);
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> DeleteTransactionAsync(Guid transactionId)
+        {
+            await SetTokenAsync();
+            try
+            {
+                var response = await _http.DeleteAsync($"api/v1/Transaction/{transactionId}");
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
     }
 }

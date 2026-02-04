@@ -1,0 +1,144 @@
+﻿@page "/groups"
+@using FinancialTracker.Web.Models
+@using FinancialTracker.Web.Services
+@inject FinancialService FinancialService
+@inject NavigationManager Nav
+
+<div class="groups-page">
+    <header class="groups-header">
+        <button class="back-btn" @onclick='() => Nav.NavigateTo("/")'>←</button>
+        <h2>Групи</h2>
+        <button class="create-group-btn" @onclick="OpenCreateGroupModal">
+            <span class="plus-icon">+</span> Створити групу
+        </button>
+    </header>
+
+    <div class="groups-list">
+        @if (groups == null)
+        {
+            <div class="loading-container">
+                <div class="spinner"></div>
+                <p>Завантаження груп...</p>
+            </div>
+        }
+        else if (!groups.Any())
+        {
+            <p class="empty-text">У вас ще немає створених груп.</p>
+        }
+        else
+        {
+            @foreach (var group in groups)
+            {
+                <div class="group-card" @key="group.Id">
+                    <div class="group-card-content">
+                        <div class="group-info">
+                            <span class="group-name">@group.Name</span>
+                            <h2 class="group-amount">@group.TotalLimit.ToString("N0") @GetCurrencySymbol(group.BaseCurrency)</h2>
+
+                            @if (group.ParticipantNames == null || group.ParticipantNames.Count == 0)
+                            {
+                                <span class="participants-count">0 учасників</span>
+                            }
+                            else if (group.ParticipantNames.Count != 4)
+                            {
+                                <span class="participants-count">@group.ParticipantNames.Count учасники</span>
+                            }
+                        </div>
+
+                        <div class="group-actions">
+                            <span class="edit-icon" @onclick="() => OpenEditGroup(group)">✎</span>
+                            <div class="avatar-stack">
+                                @if (group.ParticipantNames != null)
+                                {
+                                    @foreach (var name in group.ParticipantNames)
+                                    {
+                                        <div class="avatar">@name[0].ToString().ToUpper()</div>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+<EditGroup IsVisible="showEditModal"
+           Group="selectedGroup"
+           OnClose="CloseEditModal"
+           OnSave="HandleSaveGroup"
+           OnDelete="HandleDeleteGroup" />
+
+<CreateGroup IsVisible="showCreateModal"
+             OnClose="() => showCreateModal = false"
+             OnCreated="HandleGroupCreated" />
+
+
+@code {
+    private List<GroupDto> groups = new();
+    private bool showEditModal = false;
+    private bool showCreateModal = false;
+    private GroupDto? selectedGroup = null;
+
+    protected override async Task OnInitializedAsync() => await LoadGroups();
+
+    private async Task LoadGroups()
+    {
+        groups = await FinancialService.GetGroupsAsync();
+        StateHasChanged();
+    }
+
+    private string GetCurrencySymbol(string? code) => code?.ToUpper() switch
+    {
+        "USD" => "$",
+        "EUR" => "€",
+        "UAH" => "₴",
+        _ => "₴"
+    };
+
+    private void OpenEditGroup(GroupDto group)
+    {
+        selectedGroup = group;
+        showEditModal = true;
+    }
+
+    private void CloseEditModal()
+    {
+        showEditModal = false;
+        selectedGroup = null;
+    }
+
+    private async Task HandleSaveGroup(GroupDto updatedGroup)
+    {
+        var success = await FinancialService.UpdateGroupAsync(updatedGroup);
+        if (success)
+        {
+            var index = groups.FindIndex(g => g.Id == updatedGroup.Id);
+            if (index != -1)
+            {
+                groups[index] = updatedGroup;
+            }
+
+            CloseEditModal();
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleDeleteGroup(string groupId)
+    {
+        if (await FinancialService.DeleteGroupAsync(groupId))
+        {
+            await LoadGroups();
+            CloseEditModal();
+        }
+    }
+
+    private void OpenCreateGroupModal() => showCreateModal = true;
+
+    private async Task HandleGroupCreated(GroupDto newGroup)
+    {
+        await LoadGroups();
+        showCreateModal = false;
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,148 @@
+﻿@using FinancialTracker.Web.Models
+@using FinancialTracker.Web.Services
+@inject FinancialService FinancialService
+
+@if (IsVisible && Group != null)
+{
+    <div class="edit-group-overlay" @onclick="HandleOverlayClick">
+        <div class="edit-group-modal" @onclick:stopPropagation>
+            <div class="modal-header">
+                <h3>Редагувати групу</h3>
+                <span class="cancel-link" @onclick="Close">Скасувати</span>
+            </div>
+
+            <div class="modal-body">
+                <label>Назва групи</label>
+                <input type="text" @bind="editedName" placeholder="Змінити назву групи" />
+
+                <label>Оберіть валюту</label>
+                <select class="currency-select" @bind="editedCurrency">
+                    <option value="UAH">₴ Українська гривня</option>
+                    <option value="USD">$ Долар США</option>
+                    <option value="EUR">€ Євро</option>
+                </select>
+
+                <div class="invite-section">
+                    <label>Запросити учасників</label>
+                    <span class="mail-icon">✉</span>
+                </div>
+                <div class="email-input-container">
+                    <input type="email"
+                           @bind="newEmail"
+                           @bind:event="oninput"
+                           @onkeypress="HandleEmailKeyPress"
+                           placeholder="Введіть email учасника" />
+                </div>
+
+                <div class="email-tags">
+                    @if (editedParticipants != null && editedParticipants.Any())
+                    {
+                        @foreach (var email in editedParticipants.ToList())
+                        {
+                            <div class="email-tag">
+                                <span>@email</span>
+                                <span class="remove-tag" @onclick="() => RemoveParticipant(email)">×</span>
+                            </div>
+                        }
+                    }
+                </div>
+
+                <div class="copy-link">
+                    <span>🔗 Скопіювати посилання для запрошення</span>
+                </div>
+
+                <button class="btn-save" @onclick="SaveGroup">Зберегти</button>
+                <button class="btn-delete" @onclick="DeleteGroup">Видалити</button>
+            </div>
+        </div>
+    </div>
+}
+
+
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public GroupDto? Group { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<GroupDto> OnSave { get; set; }
+    [Parameter] public EventCallback<string> OnDelete { get; set; }
+
+    private string editedName = "";
+    private string editedCurrency = "UAH";
+    private List<string> editedParticipants = new();
+    private string newEmail = "";
+    private string _lastGroupId = "";
+
+    protected override void OnParametersSet()
+    {
+        if (Group != null && IsVisible)
+        {
+            editedName = Group.Name ?? "";
+            editedCurrency = Group.BaseCurrency ?? "UAH";
+            editedParticipants = new List<string>(Group.ParticipantNames ?? new List<string>());
+            _lastGroupId = Group.Id;
+            StateHasChanged();
+        }
+    }
+
+    private void HandleEmailKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(newEmail))
+        {
+            AddParticipant();
+        }
+    }
+
+    private void AddParticipant()
+    {
+        if (!string.IsNullOrWhiteSpace(newEmail) && !editedParticipants.Contains(newEmail))
+        {
+            editedParticipants.Add(newEmail);
+            newEmail = "";
+            StateHasChanged();
+        }
+    }
+
+    private void RemoveParticipant(string email)
+    {
+        editedParticipants.Remove(email);
+        StateHasChanged();
+    }
+
+    private void HandleOverlayClick()
+    {
+        Close();
+    }
+
+    private void Close()
+    {
+        OnClose.InvokeAsync();
+    }
+
+    private async Task SaveGroup()
+    {
+        if (Group != null)
+        {
+            var updated = new GroupDto
+                {
+                    Id = Group.Id,
+                    Name = editedName,
+                    BaseCurrency = editedCurrency, 
+                    TotalLimit = Group.TotalLimit,
+                    ParticipantNames = new List<string>(editedParticipants),
+                    CreatedAt = Group.CreatedAt
+                };
+
+
+            await OnSave.InvokeAsync(updated);
+        }
+    }
+
+    private async Task DeleteGroup()
+    {
+        if (Group != null)
+        {
+            await OnDelete.InvokeAsync(Group.Id);
+        }
+    }
+}
