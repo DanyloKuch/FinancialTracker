@@ -69,5 +69,28 @@ namespace FinancialTracker.API.Controllers
 
             return Ok();
         }
+
+        [HttpGet("summary")]
+        public async Task<IActionResult> GetSummary()
+        {
+            var result = await _transactionService.GetGeneralFinancialSummary();
+
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
+        [HttpGet("group/{groupId:guid}")]
+        public async Task<IActionResult> GetTransactionByGroup(Guid groupId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            var result = await _transactionService.GetTransactionByGroup(groupId, page, pageSize);
+
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+
+        }
     }
 }

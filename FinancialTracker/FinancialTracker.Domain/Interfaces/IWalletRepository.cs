@@ -16,5 +16,6 @@ namespace FinancialTracker.Domain.Interfaces
         Task<IEnumerable<Wallet>> GetAllByUserIdAsync(Guid userId);
         Task<Result> UpdateAsync(Wallet wallet);      
         Task<Result> DeleteAsync(Guid walletId, Guid userId);
+        Task<(Wallet Wallet, decimal Income, decimal Expense)?> GetWalletWithStatsAsync(Guid walletId, Guid userId);
     }
 }

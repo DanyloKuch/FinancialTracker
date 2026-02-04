@@ -61,7 +61,7 @@
         </div>
     </header>
 
-        <div class="dashboard-content">
+    <div class="dashboard-content">
         <div class="balance-section">
             <span class="label">Поточний баланс</span>
             <h1 class="balance-amount">
@@ -138,7 +138,7 @@
                 <div class="section-header" @onclick='() => Nav.NavigateTo("/transactions")' style="cursor: pointer;">
                     <h3>Останні транзакції</h3>
                     <div class="view-all-action">
-                        <span>Всі (@totalTransactionsCount)</span>
+                        <span>Всі (@filteredTransactionsCount)</span>
                         <span class="arrow-icon">→</span>
                     </div>
                 </div>
@@ -224,182 +224,12 @@
     </nav>
 </div>
 
-<style>
-    .wallet-container {
-        position: relative;
-        display: inline-block;
-    }
-
-    .wallet-select {
-        background: rgba(255, 255, 255, 0.1);
-        color: white;
-        padding: 8px 16px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 14px;
-        border: 1px solid #444;
-    }
-
-    .wallet-menu-popup {
-        position: absolute;
-        top: 45px;
-        right: 0;
-        width: 240px;
-        background: #1e1e1e;
-        border: 1px solid #333;
-        border-radius: 12px;
-        padding: 16px;
-        z-index: 1000;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-    }
-
-    .menu-title {
-        color: #888;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 14px;
-    }
-
-    .wallet-option {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-    }
-
-    .radio-container {
-        display: flex;
-        align-items: center;
-        cursor: pointer;
-        color: #efefef;
-        font-size: 14px;
-        gap: 10px;
-    }
-
-        .radio-container input {
-            position: absolute;
-            opacity: 0;
-            cursor: pointer;
-        }
-
-    .custom-radio {
-        width: 18px;
-        height: 18px;
-        border: 2px solid #555;
-        border-radius: 50%;
-        display: inline-block;
-        position: relative;
-        background: transparent;
-        transition: all 0.2s ease-in-out;
-    }
-
-    .radio-container input:checked ~ .custom-radio {
-        background-color: white; 
-        border-color: white; 
-    }
-
-    .wallet-name {
-        color: #888;
-        transition: color 0.2s;
-    }
-
-    .radio-container input:checked ~ .wallet-name {
-        color: white; 
-    }
-
-    .edit-pen {
-        color: #555;
-        cursor: pointer;
-        transition: color 0.2s;
-    }
-
-        .edit-pen:hover {
-            color: white;
-        }
-
-    .btn-add-new {
-        width: 100%;
-        background: #2a2a2a;
-        border: 1px solid #3a3a3a;
-        color: #ddd;
-        padding: 10px;
-        border-radius: 8px;
-        margin-top: 8px;
-        cursor: pointer;
-        font-size: 13px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-    }
-
-        .btn-add-new:hover {
-            background: #333;
-            color: white;
-        }
-
-    .modal-backdrop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0, 0, 0, 0.7);
-        backdrop-filter: blur(5px);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 2000;
-    }
-
-    .header-inline {
-        display: flex;
-        align-items: center;
-        justify-content: space-between; 
-        margin-bottom: 10px;
-    }
-
-        .header-inline h3 {
-            margin: 0; 
-        }
-
-    .edit-pen-main {
-        cursor: pointer;
-        font-size: 18px;
-        color: #888;
-        transition: color 0.2s, transform 0.2s;
-        padding: 5px;
-    }
-        .edit-pen-main:hover {
-            color: white;
-            transform: scale(1.2); 
-        }
-
-    .progress-fill {
-        height: 100%;
-        transition: width 0.3s ease; 
-        width: 0; 
-    }
-    
-    .progress-fill.green {
-        background-color: #4ae38c;
-    }
-
-    .progress-fill.orange {
-        background-color: #ffcc00;
-    }
-
-    .progress-fill.red {
-        background-color: #ff4d4d;
-    }
-</style>
 
 
 @code {
     private decimal totalWalletBalance = 0;
-    private decimal incomeSum = 0; 
-    private decimal expenseSum = 0; 
+    private decimal incomeSum = 0;
+    private decimal expenseSum = 0;
 
     private List<WalletDto> wallets = new();
     private WalletDto? selectedWallet;
@@ -409,7 +239,7 @@
     private List<CategoryDto> categories = new();
     private List<TransactionDto> allTransactions = new();
     private List<TransactionDto> recentTransactions = new();
-    private int totalTransactionsCount = 0;
+    private int filteredTransactionsCount = 0;
     private List<GroupDto> groups = new();
     private GroupDto? firstGroup;
 
@@ -422,7 +252,7 @@
             "USD" => "$",
             "EUR" => "€",
             "UAH" => "₴",
-            _ => selectedWallet?.CurrencyCode ?? "₴" 
+            _ => selectedWallet?.CurrencyCode ?? "₴"
         };
     }
 
@@ -431,20 +261,16 @@
         var fetchedWallets = await FinancialService.GetWalletsAsync();
         wallets = fetchedWallets ?? new List<WalletDto>();
         selectedWallet = totalWallet;
-        allTransactions = await FinancialService.GetTransactionsAsync() ?? new List<TransactionDto>();
-        categories = await FinancialService.GetCategoriesAsync() ?? new List<CategoryDto>();
-        
 
-        var pagedResult = await FinancialService.GetTransactionsAsync(page: 1, pageSize: 20);
-        recentTransactions = pagedResult.Items;
-        totalTransactionsCount = pagedResult.TotalCount;
+        var pagedResult = await FinancialService.GetTransactionsAsync(page: 1, pageSize: 1000);
+        allTransactions = pagedResult.Items;
 
         categories = await FinancialService.GetCategoriesAsync();
-        if (categories != null && recentTransactions != null)
+        if (categories != null && allTransactions != null)
         {
             foreach (var cat in categories)
             {
-                cat.SpentAmount = recentTransactions
+                cat.SpentAmount = allTransactions
                     .Where(t => t.Type == 1 && t.CategoryId == cat.Id)
                     .Sum(t => t.Amount);
             }
@@ -454,7 +280,7 @@
         firstGroup = groups.FirstOrDefault();
         UpdateDisplayBalance();
     }
-   
+
     private void ToggleDropdown()
     {
         showCreateModal = false;
@@ -465,7 +291,7 @@
     {
         selectedWallet = wallet;
         UpdateDisplayBalance();
-        isDropdownOpen = false; 
+        isDropdownOpen = false;
     }
 
     private void UpdateDisplayBalance()
@@ -476,22 +302,18 @@
             incomeSum = allTransactions.Where(t => t.Type == 0).Sum(t => t.Amount);
             expenseSum = allTransactions.Where(t => t.Type == 1).Sum(t => t.Amount);
             recentTransactions = allTransactions.OrderByDescending(t => t.CreatedAt).Take(10).ToList();
+            filteredTransactionsCount = allTransactions.Count;
         }
         else
         {
             totalWalletBalance = selectedWallet?.Balance ?? 0;
-            incomeSum = (selectedWallet?.Id == Guid.Empty)
-        ? allTransactions.Where(t => t.Type == 0).Sum(t => t.Amount)
-        : allTransactions.Where(t => t.Type == 0 && t.WalletId == selectedWallet.Id).Sum(t => t.Amount);
 
-            expenseSum = (selectedWallet?.Id == Guid.Empty)
-                ? allTransactions.Where(t => t.Type == 1).Sum(t => t.Amount)
-                : allTransactions.Where(t => t.Type == 1 && t.WalletId == selectedWallet.Id).Sum(t => t.Amount);
-        
-            recentTransactions = allTransactions
-                .Where(t => t.WalletId == selectedWallet.Id)
-                .OrderByDescending(t => t.CreatedAt)
-                .ToList();
+            var walletTransactions = allTransactions.Where(t => t.WalletId == selectedWallet.Id).ToList();
+
+            incomeSum = walletTransactions.Where(t => t.Type == 0).Sum(t => t.Amount);
+            expenseSum = walletTransactions.Where(t => t.Type == 1).Sum(t => t.Amount);
+            recentTransactions = walletTransactions.OrderByDescending(t => t.CreatedAt).Take(10).ToList();
+            filteredTransactionsCount = walletTransactions.Count;
         }
 
         if (categories != null)
@@ -537,13 +359,13 @@
     {
         isDropdownOpen = false;
         selectedWalletForEdit = new WalletDto
-            {
-                Id = wallet.Id,
-                Name = wallet.Name,
-                Balance = wallet.Balance,
-                CurrencyCode = wallet.CurrencyCode,
-                Type = wallet.Type 
-            };
+        {
+            Id = wallet.Id,
+            Name = wallet.Name,
+            Balance = wallet.Balance,
+            CurrencyCode = wallet.CurrencyCode,
+            Type = wallet.Type
+        };
         showEditModal = true;
     }
 
@@ -560,9 +382,9 @@
                 selectedWallet = wallets.FirstOrDefault(w => w.Id == updatedWallet.Id);
             }
 
-            showEditModal = false; 
+            showEditModal = false;
             UpdateDisplayBalance();
-            StateHasChanged(); 
+            StateHasChanged();
         }
     }
 
@@ -577,4 +399,3 @@
         }
     }
 }
-

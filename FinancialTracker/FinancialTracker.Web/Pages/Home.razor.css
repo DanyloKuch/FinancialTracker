@@ -403,3 +403,176 @@
     align-items: center;
     gap: 15px;
 }
+
+
+
+
+.wallet-container {
+    position: relative;
+    display: inline-block;
+}
+
+.wallet-select {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    border: 1px solid #444;
+}
+
+.wallet-menu-popup {
+    position: absolute;
+    top: 45px;
+    right: 0;
+    width: 240px;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 16px;
+    z-index: 1000;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+}
+
+.menu-title {
+    color: #888;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 14px;
+}
+
+.wallet-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.radio-container {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    color: #efefef;
+    font-size: 14px;
+    gap: 10px;
+}
+
+    .radio-container input {
+        position: absolute;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+.custom-radio {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #555;
+    border-radius: 50%;
+    display: inline-block;
+    position: relative;
+    background: transparent;
+    transition: all 0.2s ease-in-out;
+}
+
+.radio-container input:checked ~ .custom-radio {
+    background-color: white;
+    border-color: white;
+}
+
+.wallet-name {
+    color: #888;
+    transition: color 0.2s;
+}
+
+.radio-container input:checked ~ .wallet-name {
+    color: white;
+}
+
+.edit-pen {
+    color: #555;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+    .edit-pen:hover {
+        color: white;
+    }
+
+.btn-add-new {
+    width: 100%;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    color: #ddd;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+    .btn-add-new:hover {
+        background: #333;
+        color: white;
+    }
+
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.header-inline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+    .header-inline h3 {
+        margin: 0;
+    }
+
+.edit-pen-main {
+    cursor: pointer;
+    font-size: 18px;
+    color: #888;
+    transition: color 0.2s, transform 0.2s;
+    padding: 5px;
+}
+
+    .edit-pen-main:hover {
+        color: white;
+        transform: scale(1.2);
+    }
+
+.progress-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+    width: 0;
+}
+
+    .progress-fill.green {
+        background-color: #4ae38c;
+    }
+
+    .progress-fill.orange {
+        background-color: #ffcc00;
+    }
+
+    .progress-fill.red {
+        background-color: #ff4d4d;
+    }

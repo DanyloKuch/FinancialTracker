@@ -155,5 +155,15 @@ namespace FinancialTracker.Infrastructure.Repositories
             await _context.SaveChangesAsync();
             return Result.Success();
         }
+
+        public async Task<Result> IsUserInGroup(Guid userId, Guid groupId)
+        {
+            var userInGroup = await _context.GroupMembers
+                .AnyAsync(m => m.UserId == userId && m.GroupId == groupId);
+
+            return userInGroup
+                ? Result.Success()
+                : Result.Failure("User id not in this group");
+        }
     }
 }

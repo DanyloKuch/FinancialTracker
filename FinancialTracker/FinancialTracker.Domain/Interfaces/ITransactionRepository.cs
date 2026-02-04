@@ -1,4 +1,5 @@
-﻿using FinancialTracker.Domain.Models;
+﻿using FinancialTracker.Domain.Enums;
+using FinancialTracker.Domain.Models;
 using FinancialTracker.Domain.Shared;
 
 namespace FinancialTracker.Domain.Interfaces
@@ -11,5 +12,8 @@ namespace FinancialTracker.Domain.Interfaces
         Task<Result<Transaction>> GetById(Guid userId, Guid transactionId);
         Task<Result> Delete(Guid userId, Guid transactionId);
         Task UpdateAsync(Transaction transaction);
+        Task<Result<Dictionary<TransactionType, decimal>>> GetTotalsGroupedByType(Guid userId);
+        Task<Result<(IReadOnlyList<Transaction> Items, int TotalCount)>> GetAllTransactionByGroup(Guid groupId, int page, int pageSize);
+        Task<decimal> GetTotalByCategoryIdAsync(Guid userId, Guid categoryId);
     }
-}
+}   

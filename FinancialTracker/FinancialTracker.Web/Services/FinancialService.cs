@@ -157,6 +157,7 @@ namespace FinancialTracker.Web.Services
             }
         }
 
+<<<<<<< HEAD
         public async Task<bool> UpdateGroupAsync(GroupDto group)
         {
             await SetTokenAsync();
@@ -206,6 +207,9 @@ namespace FinancialTracker.Web.Services
                 return null;
             }
         }
+=======
+
+>>>>>>> origin/main
         public async Task<FinancialSummaryResponse> GetFinancialSummaryAsync()
         {
             await SetTokenAsync();
@@ -262,6 +266,9 @@ namespace FinancialTracker.Web.Services
                 return false;
             }
         }
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
     }
 }

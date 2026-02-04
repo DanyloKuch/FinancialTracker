@@ -96,6 +96,8 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseCors("AllowNextJS");
+
 app.MapControllers();
 app.MapGroup("/api/v1/auth").MapIdentityApi<UserEntity>();
 

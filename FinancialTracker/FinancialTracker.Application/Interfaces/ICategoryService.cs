@@ -10,5 +10,6 @@ namespace FinancialTracker.Application.Interfaces
         Task<Result<Guid>> CreateCategoryAsync(CategoryRequest request);
         Task<Result<CategoryResponse>> UpdateCategoryAsync(Guid id, CategoryRequest request);
         Task<Result> DeleteCategoryAsync(Guid id);
+        Task<Result<decimal>> GetCategoryTotalAmountAsync(Guid categoryId);
     }
 }

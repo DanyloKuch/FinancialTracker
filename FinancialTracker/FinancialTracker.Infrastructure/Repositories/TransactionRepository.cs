@@ -1,9 +1,10 @@
-﻿using FinancialTracker.Domain.Models;
-using FinancialTracker.Domain.Shared;
-using Microsoft.EntityFrameworkCore;
+﻿using FinancialTracker.Application.DTOs;
+using FinancialTracker.Domain.Enums;
 using FinancialTracker.Domain.Interfaces;
+using FinancialTracker.Domain.Models;
+using FinancialTracker.Domain.Shared;
 using FinancialTracker.Infrastructure.Entities;
-using FinancialTracker.Application.DTOs;
+using Microsoft.EntityFrameworkCore;
 
 namespace FinancialTracker.Infrastructure.Repositories
 {
@@ -130,6 +131,62 @@ namespace FinancialTracker.Infrastructure.Repositories
                 entity.TargetWalletId = transaction.TargetWalletId;
                 entity.CreatedAt = transaction.CreatedAt;
             }
+        }
+
+        public async Task<Result<Dictionary<TransactionType, decimal>>> GetTotalsGroupedByType(Guid userId)
+        {
+            var totals = await _context.Transactions
+                .AsNoTracking()
+                .Where(t => t.UserId == userId)
+                .Where(t => t.Type == TransactionType.Income || t.Type == TransactionType.Expense)
+                .GroupBy(t => t.Type)
+                .Select(g => new { Type = g.Key, Sum = g.Sum(t => t.Amount) })
+                .ToDictionaryAsync(x => x.Type, x => x.Sum);
+
+            return Result<Dictionary<TransactionType, decimal>>.Success(totals);
+        }
+
+        public async Task<Result<(IReadOnlyList<Transaction> Items, int TotalCount)>> GetAllTransactionByGroup(Guid groupId, int page, int pageSize)
+        {
+            var query = _context.Transactions
+                .AsNoTracking()
+                .Where(t => t.GroupId == groupId);
+
+            var totalCount = await query.CountAsync();
+
+            var transactionEntities = await query
+                .OrderByDescending(t => t.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var transactions = transactionEntities
+                .Select(t => Transaction.Create(
+                    id: t.Id,
+                    userId: t.UserId,
+                    walletid: t.WalletId,
+                    targetWalletId: t.TargetWalletId,
+                    categoryId: t.CategoryId,
+                    groupId: t.GroupId,
+                    amount: t.Amount,
+                    type: t.Type,
+                    exchangeRate: t.ExchangeRate,
+                    commission: t.Commission ?? 0m,
+                    comment: t.Comment ?? string.Empty,
+                    createdAt: t.CreatedAt))
+                .Where(r => r.IsSuccess)
+                .Select(r => r.Value)
+                .ToList();
+
+            return Result<(IReadOnlyList<Transaction>, int)>.Success((transactions, totalCount));
+        }
+
+        public async Task<decimal> GetTotalByCategoryIdAsync(Guid userId, Guid categoryId)
+        {
+            return await _context.Transactions
+                .AsNoTracking()
+                .Where(t => t.UserId == userId && t.CategoryId == categoryId)
+                .SumAsync(t => t.Amount);
         }
     }
 }
