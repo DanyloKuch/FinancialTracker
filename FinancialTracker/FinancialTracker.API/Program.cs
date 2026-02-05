@@ -43,6 +43,7 @@ builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IInvitationRepository, InvitationRepository>();
 builder.Services.AddScoped<IInvitationService, InvitationService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IFinancialService, FinancialService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

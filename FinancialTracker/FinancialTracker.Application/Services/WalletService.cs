@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq; // Для Select
-using System.Threading.Tasks;
 using FinancialTracker.Application.DTOs;
 using FinancialTracker.Application.Interfaces;
 using FinancialTracker.Domain.Interfaces;
@@ -25,8 +23,6 @@ namespace FinancialTracker.Application.Services
         {
             var userId = _currentUserService.UserId;
 
-            // 1. DTO -> Domain Model
-            // Вся бизнес-валидация происходит внутри Wallet.Create
             var walletResult = Wallet.Create(
                 Guid.NewGuid(),
                 userId,
@@ -34,14 +30,13 @@ namespace FinancialTracker.Application.Services
                 request.Type,
                 request.Balance,
                 request.CurrencyCode,
-                false, // IsArchived
+                false, 
                 DateTime.UtcNow
             );
 
             if (walletResult.IsFailure)
                 return Result<Guid>.Failure(walletResult.Error);
 
-            // 2. Сохраняем через репозиторий
             await _walletRepository.AddAsync(walletResult.Value);
 
             return Result<Guid>.Success(walletResult.Value.Id);
@@ -52,8 +47,6 @@ namespace FinancialTracker.Application.Services
             var userId = _currentUserService.UserId;
             var wallets = await _walletRepository.GetAllByUserIdAsync(userId);
 
-            // 3. Domain Model -> DTO (Record)
-            // Используем синтаксис конструктора, так как это позиционный record
             return wallets.Select(w => new WalletResponse(
                 w.Id,
                 w.Name,
@@ -74,7 +67,6 @@ namespace FinancialTracker.Application.Services
 
             var w = result.Value;
 
-            // Domain Model -> DTO (Record)
             return Result<WalletResponse>.Success(new WalletResponse(
                 w.Id,
                 w.Name,

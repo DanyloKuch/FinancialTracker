@@ -188,5 +188,44 @@ namespace FinancialTracker.Infrastructure.Repositories
                 .Where(t => t.UserId == userId && t.CategoryId == categoryId)
                 .SumAsync(t => t.Amount);
         }
+
+        public async Task<Dictionary<Guid, (decimal Income, decimal Expense)>> GetWalletStatsAsync(Guid userId)
+        {
+            var stats = await _context.Transactions
+                .AsNoTracking()
+                .Where(t => t.UserId == userId)
+                .GroupBy(t => t.WalletId)
+                .Select(g => new
+                {
+                    WalletId = g.Key,
+                    Income = g.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount),
+                    Expense = g.Where(t => t.Type == TransactionType.Expense).Sum(t => t.Amount)
+                })
+                .ToListAsync();
+
+            return stats.ToDictionary(k => k.WalletId, v => (v.Income, v.Expense));
+        }
+
+        public async Task<Dictionary<Guid, decimal>> GetCategorySpendingAsync(Guid userId)
+        {
+            // Исправлено: используем != null вместо HasValue
+            return await _context.Transactions
+                .AsNoTracking()
+                .Where(t => t.UserId == userId && t.Type == TransactionType.Expense)
+                .GroupBy(t => t.GroupId!.Value)
+                .Select(g => new { CategoryId = g.Key, Spent = g.Sum(t => t.Amount) })
+                .ToDictionaryAsync(k => k.CategoryId, v => v.Spent);
+        }
+
+        public async Task<Dictionary<Guid, decimal>> GetGroupSpendingAsync(Guid userId)
+        {
+            // Исправлено: используем != null вместо HasValue
+            return await _context.Transactions
+                .AsNoTracking()
+                .Where(t => t.UserId == userId && t.GroupId != null && t.Type == TransactionType.Expense)
+                .GroupBy(t => t.GroupId!.Value)
+                .Select(g => new { GroupId = g.Key, Spent = g.Sum(t => t.Amount) })
+                .ToDictionaryAsync(k => k.GroupId, v => v.Spent);
+        }
     }
 }
