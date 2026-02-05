@@ -3,7 +3,6 @@ using FinancialTracker.Application.Interfaces;
 using FinancialTracker.Domain.Enums;
 using FinancialTracker.Domain.Interfaces;
 using FinancialTracker.Domain.Shared;
-using System.Linq;
 
 namespace FinancialTracker.Application.Services
 {
@@ -35,30 +34,17 @@ namespace FinancialTracker.Application.Services
             if (userId == Guid.Empty)
                 return Result<DashboardSummaryResponse>.Failure("User not identified");
 
-            var walletsTask = _walletRepo.GetAllByUserIdAsync(userId);
-            var categoriesTask = _categoryRepo.GetAllAsync(userId);
-            var groupsTask = _groupRepo.GetAllByUserIdAsync(userId);
+            var wallets = await _walletRepo.GetAllByUserIdAsync(userId);
+            var categories = await _categoryRepo.GetAllAsync(userId);
+            var groupsResult = await _groupRepo.GetAllByUserIdAsync(userId);
+            var transactionsResult = await _transactionRepo.GetAllTransactionByUser(userId, 1, 10);
 
-            var transactionsTask = _transactionRepo.GetAllTransactionByUser(userId, 1, 10);
+            var globalStatsResult = await _transactionRepo.GetTotalsGroupedByType(userId);
+            var walletStats = await _transactionRepo.GetWalletStatsAsync(userId);
+            var catStats = await _transactionRepo.GetCategorySpendingAsync(userId);
+            var groupStats = await _transactionRepo.GetGroupSpendingAsync(userId);
 
-            var globalStatsTask = _transactionRepo.GetTotalsGroupedByType(userId);
-            var walletStatsTask = _transactionRepo.GetWalletStatsAsync(userId);
-            var catStatsTask = _transactionRepo.GetCategorySpendingAsync(userId);
-            var groupStatsTask = _transactionRepo.GetGroupSpendingAsync(userId);
-
-            await Task.WhenAll(
-                walletsTask, categoriesTask, groupsTask, transactionsTask,
-                globalStatsTask, walletStatsTask, catStatsTask, groupStatsTask);
-
-            var wallets = walletsTask.Result;
-            var categories = categoriesTask.Result;
-            var groupsResult = groupsTask.Result;
-            var transactionsResult = transactionsTask.Result;
-
-            var globalStats = globalStatsTask.Result.Value;
-            var walletStats = walletStatsTask.Result;
-            var catStats = catStatsTask.Result;
-            var groupStats = groupStatsTask.Result;
+            var globalStats = globalStatsResult.IsSuccess ? globalStatsResult.Value : new Dictionary<TransactionType, decimal>();
 
             var walletDtos = wallets.Select(w => {
                 var stats = walletStats.ContainsKey(w.Id) ? walletStats[w.Id] : (Income: 0m, Expense: 0m);
@@ -92,8 +78,8 @@ namespace FinancialTracker.Application.Services
                     t.GroupId,
                     t.Amount,
                     t.Type,
-                    t.ExchangeRate,  
-                    t.Commission, 
+                    t.ExchangeRate,
+                    t.Commission,
                     t.Comment,
                     t.CreatedAt
                 )).ToList();
