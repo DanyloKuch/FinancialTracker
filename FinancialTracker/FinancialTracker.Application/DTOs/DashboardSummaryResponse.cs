@@ -10,5 +10,6 @@
         public List<DashboardCategoryResponse> Categories { get; set; } = new();
         public List<DashboardGroupResponse> Groups { get; set; } = new();
         public List<TransactionResponse> RecentTransactions { get; set; } = new();
+        public List<DashboardCurrencyRateResponse> ExchangeRates { get; set; } = new();
     }
 }

@@ -13,18 +13,21 @@ namespace FinancialTracker.Application.Services
         private readonly ICategoryRepository _categoryRepo;
         private readonly IGroupRepository _groupRepo;
         private readonly ICurrentUserService _currentUserService;
+        private readonly ICurrencyRepository _currencyRepo;
 
         public FinancialService(
             ITransactionRepository transactionRepo,
             IWalletRepository walletRepo,
             ICategoryRepository categoryRepo,
             IGroupRepository groupRepo,
+            ICurrencyRepository currencyRepo,
             ICurrentUserService currentUserService)
         {
             _transactionRepo = transactionRepo;
             _walletRepo = walletRepo;
             _categoryRepo = categoryRepo;
             _groupRepo = groupRepo;
+            _currencyRepo = currencyRepo;
             _currentUserService = currentUserService;
         }
 
@@ -38,6 +41,8 @@ namespace FinancialTracker.Application.Services
             var categories = await _categoryRepo.GetAllAsync(userId);
             var groupsResult = await _groupRepo.GetAllByUserIdAsync(userId);
             var transactionsResult = await _transactionRepo.GetAllTransactionByUser(userId, 1, 10);
+
+            var rates = await _currencyRepo.GetAllRatesAsync();
 
             var globalStatsResult = await _transactionRepo.GetTotalsGroupedByType(userId);
             var walletStats = await _transactionRepo.GetWalletStatsAsync(userId);
@@ -85,6 +90,12 @@ namespace FinancialTracker.Application.Services
                 )).ToList();
             }
 
+            var rateDtos = rates.Select(r => new DashboardCurrencyRateResponse(
+                r.Code,
+                r.Rate,
+                r.UpdatedAt
+            )).ToList();
+
             var totalIncome = globalStats.ContainsKey(TransactionType.Income) ? globalStats[TransactionType.Income] : 0m;
             var totalExpense = globalStats.ContainsKey(TransactionType.Expense) ? globalStats[TransactionType.Expense] : 0m;
 
@@ -96,7 +107,8 @@ namespace FinancialTracker.Application.Services
                 Wallets = walletDtos,
                 Categories = categoryDtos,
                 Groups = groupDtos,
-                RecentTransactions = transactionDtos
+                RecentTransactions = transactionDtos,
+                ExchangeRates = rateDtos
             };
 
             return Result<DashboardSummaryResponse>.Success(response);
