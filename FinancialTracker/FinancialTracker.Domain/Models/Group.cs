@@ -27,7 +27,7 @@ namespace FinancialTracker.Domain.Models
 
         public static Result<Group> Create(Guid id, Guid ownerId, string name, string baseCurrency, decimal? totalLimit, DateTime createdAt, List<GroupMember>? members = null)
         {
-            // Валідація
+            
             if (string.IsNullOrWhiteSpace(name))
                 return Result<Group>.Failure("Group name cannot be empty.");
 

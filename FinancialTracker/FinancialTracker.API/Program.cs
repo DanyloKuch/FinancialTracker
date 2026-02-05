@@ -43,7 +43,14 @@ builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IInvitationRepository, InvitationRepository>();
 builder.Services.AddScoped<IInvitationService, InvitationService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
-
+builder.Services.AddHttpClient("Monobank", client =>
+{
+    client.BaseAddress = new Uri("https://api.monobank.ua");
+});
+builder.Services.AddScoped<ICurrencyRepository, CurrencyRepository>();
+builder.Services.AddSingleton<CurrencyService>();
+builder.Services.AddSingleton<ICurrencyService>(sp => sp.GetRequiredService<CurrencyService>());
+builder.Services.AddHostedService<CurrencySyncWorker>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -75,6 +82,7 @@ builder.Services.AddOpenApi("v1", options =>
         return Task.CompletedTask;
     });
 });
+
 
 var app = builder.Build();
 
