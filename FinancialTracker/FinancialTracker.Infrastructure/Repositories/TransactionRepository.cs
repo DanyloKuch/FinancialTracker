@@ -208,18 +208,16 @@ namespace FinancialTracker.Infrastructure.Repositories
 
         public async Task<Dictionary<Guid, decimal>> GetCategorySpendingAsync(Guid userId)
         {
-            // Исправлено: используем != null вместо HasValue
             return await _context.Transactions
                 .AsNoTracking()
                 .Where(t => t.UserId == userId && t.Type == TransactionType.Expense)
-                .GroupBy(t => t.GroupId!.Value)
+                .GroupBy(t => t.CategoryId)
                 .Select(g => new { CategoryId = g.Key, Spent = g.Sum(t => t.Amount) })
                 .ToDictionaryAsync(k => k.CategoryId, v => v.Spent);
         }
 
         public async Task<Dictionary<Guid, decimal>> GetGroupSpendingAsync(Guid userId)
         {
-            // Исправлено: используем != null вместо HasValue
             return await _context.Transactions
                 .AsNoTracking()
                 .Where(t => t.UserId == userId && t.GroupId != null && t.Type == TransactionType.Expense)
