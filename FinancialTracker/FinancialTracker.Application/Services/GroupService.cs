@@ -134,29 +134,50 @@ namespace FinancialTracker.Application.Services
 
             return await _groupRepository.AddMemberAsync(newMemberResult.Value);
         }
-        public async Task<Result> DeleteOrLeaveGroupAsync(Guid groupId)
+        public async Task<Result> KickMemberAsync(Guid groupId, Guid memberId)
         {
-            var userId = _currentUserService.UserId;
+            var currentUserId = _currentUserService.UserId;
 
-           
-            var groupResult = await _groupRepository.GetByIdAsync(groupId, userId);
+       
+            var groupResult = await _groupRepository.GetByIdAsync(groupId, currentUserId);
+
+            if (groupResult.IsFailure)
+                return Result.Failure("Group not found or access denied.");
+
+            var group = groupResult.Value;
+
+            if (group.OwnerId != currentUserId)
+                return Result.Failure("Access denied. Only the owner can remove members.");
+
+         
+            if (memberId == currentUserId)
+                return Result.Failure("You cannot kick yourself. Use 'Leave' or 'Delete Group' functionality.");
+
+            var memberToRemove = group.Members.FirstOrDefault(m => m.UserId == memberId);
+            if (memberToRemove == null)
+                return Result.Failure("User is not a member of this group.");
+
+   
+            return await _groupRepository.RemoveMemberAsync(groupId, memberId);
+        }
+
+        public async Task<Result> LeaveGroupAsync(Guid groupId)
+        {
+            var currentUserId = _currentUserService.UserId;
+
+            var groupResult = await _groupRepository.GetByIdAsync(groupId, currentUserId);
 
             if (groupResult.IsFailure)
                 return Result.Failure("Group not found or you are not a member.");
 
             var group = groupResult.Value;
 
+           
+            if (group.OwnerId == currentUserId)
+                return Result.Failure("Owner cannot leave the group. You must delete the group instead.");
+
           
-            if (group.OwnerId == userId)
-            {
-        
-                return await _groupRepository.DeleteGroupAsync(groupId);
-            }
-            else
-            {
-                
-                return await _groupRepository.RemoveMemberAsync(groupId, userId);
-            }
+            return await _groupRepository.RemoveMemberAsync(groupId, currentUserId);
         }
         public async Task<Result<GroupResponse>> UpdateGroupAsync(Guid groupId, GroupRequest request)
         {
@@ -201,6 +222,24 @@ namespace FinancialTracker.Application.Services
                 membersDto,
                 group.CreatedAt
             ));
+        }
+        public async Task<Result> DeleteGroupAsync(Guid groupId)
+        {
+            var currentUserId = _currentUserService.UserId;
+
+            
+            var groupResult = await _groupRepository.GetByIdAsync(groupId, currentUserId);
+
+            if (groupResult.IsFailure)
+                return Result.Failure("Group not found or access denied.");
+
+            var group = groupResult.Value;
+
+            if (group.OwnerId != currentUserId)
+                return Result.Failure("Access denied. Only the owner can delete the group.");
+
+         
+            return await _groupRepository.DeleteGroupAsync(groupId);
         }
     }
 }
