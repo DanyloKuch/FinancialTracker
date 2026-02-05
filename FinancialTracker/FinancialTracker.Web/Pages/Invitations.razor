@@ -1,0 +1,87 @@
+﻿@using FinancialTracker.Web.Models
+@using FinancialTracker.Web.Services
+@inject FinancialService FinancialService
+
+@if (IsVisible)
+{
+    <div class="edit-group-overlay" @onclick="Close">
+        <div class="edit-group-modal" @onclick:stopPropagation>
+            <div class="modal-header">
+                <h3>Запрошення</h3>
+                <span class="cancel-link" @onclick="Close">Закрити</span>
+            </div>
+
+            <div class="modal-body">
+                @if (invitations == null)
+                {
+                    <p style="text-align:center">Завантаження...</p>
+                }
+                else if (!invitations.Any())
+                {
+                    <p style="text-align:center; color: #8e8e93; padding: 20px 0;">
+                        У вас немає нових запрошень
+                    </p>
+                }
+                else
+                {
+                    <div class="invitations-scroll-list">
+                        @foreach (var invite in invitations)
+                        {
+                            <div class="invite-item-card">
+                                <div class="invite-info">
+                                    <div class="invite-avatar">✉</div>
+                                    <div class="invite-text">
+                                        <strong>Запрошення в групу</strong>
+                                        <p>Від: @invite.InviterId</p>
+                                    </div>
+                                </div>
+                                <div class="invite-actions-row">
+                                    <button class="btn-accept" @onclick="() => Accept(invite.Id)">Прийняти</button>
+                                    <button class="btn-reject" @onclick="() => Reject(invite.Id)">Відхилити</button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnInvitationProcessed { get; set; }
+
+    private List<InvitationDto>? invitations;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsVisible)
+        {
+            invitations = await FinancialService.GetMyInvitationsAsync();
+        }
+    }
+
+    private async Task Accept(Guid id)
+    {
+        await FinancialService.RespondToInvitationAsync(id, true);
+        await RefreshAndNotify();
+    }
+
+    private async Task Reject(Guid id)
+    {
+        await FinancialService.RespondToInvitationAsync(id, false);
+        await RefreshAndNotify();
+    }
+
+    private async Task RefreshAndNotify()
+    {
+        invitations = await FinancialService.GetMyInvitationsAsync();
+        await OnInvitationProcessed.InvokeAsync();
+        if (invitations == null || !invitations.Any()) Close();
+    }
+
+    private void Close() => OnClose.InvokeAsync();
+}

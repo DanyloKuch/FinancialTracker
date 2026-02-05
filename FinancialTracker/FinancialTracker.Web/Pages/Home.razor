@@ -179,7 +179,7 @@
                             <div class="group-avatars"><span class="av">User</span></div>
                         </div>
                         <div class="group-money">
-                            <h1>@firstGroup.TotalLimit.ToString("N0") ₴</h1>
+                            <h1>@(firstGroup.TotalLimit?.ToString("N0") ?? "0") ₴</h1>
                             <span>з ліміту групи</span>
                         </div>
                         <div class="progress-track group-track">

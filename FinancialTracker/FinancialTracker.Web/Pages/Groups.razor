@@ -6,11 +6,24 @@
 
 <div class="groups-page">
     <header class="groups-header">
-        <button class="back-btn" @onclick='() => Nav.NavigateTo("/")'>←</button>
+        <div class="header-left">
+            <button class="back-btn" @onclick='() => Nav.NavigateTo("/")'>←</button>
+            <div class="notification-bell" @onclick="OpenInvites" style="cursor: pointer !important;">
+                <span class="bell-icon">🔔</span>
+                @if (unreadCount > 0)
+                {
+                    <span class="notification-badge">@unreadCount</span>
+                }
+            </div>
+        </div>
+
         <h2>Групи</h2>
-        <button class="create-group-btn" @onclick="OpenCreateGroupModal">
-            <span class="plus-icon">+</span> Створити групу
-        </button>
+
+        <div class="header-right">
+            <button class="create-group-btn" @onclick="OpenCreateGroupModal">
+                <span class="plus-icon">+</span> <span class="btn-text">Створити</span>
+            </button>
+        </div>
     </header>
 
     <div class="groups-list">
@@ -29,26 +42,21 @@
         {
             @foreach (var group in groups)
             {
-                <div class="group-card" @key="group.Id">
+                <div class="group-card" @key="group.Id" @onclick="() => NavigateToGroup(group.Id)" style="cursor:pointer">
                     <div class="group-card-content">
                         <div class="group-info">
                             <span class="group-name">@group.Name</span>
-                            <h2 class="group-amount">@group.TotalLimit.ToString("N0") @GetCurrencySymbol(group.BaseCurrency)</h2>
-
-                            @if (group.ParticipantNames == null || group.ParticipantNames.Count == 0)
-                            {
-                                <span class="participants-count">0 учасників</span>
-                            }
-                            else if (group.ParticipantNames.Count != 4)
-                            {
-                                <span class="participants-count">@group.ParticipantNames.Count учасники</span>
-                            }
+                            <h2 class="group-amount">@(group.TotalLimit?.ToString("N0") ?? "0") @GetCurrencySymbol(group.BaseCurrency)</h2>
+                            <span class="participants-count">
+                                @(group.ParticipantNames?.Count ?? 0) @GetParticipantLabel(group.ParticipantNames?.Count ?? 0)
+                            </span>
                         </div>
 
                         <div class="group-actions">
-                            <span class="edit-icon" @onclick="() => OpenEditGroup(group)">✎</span>
+                            <span class="edit-icon" @onclick="() => OpenEditGroup(group)" @onclick:stopPropagation>✎</span>
+
                             <div class="avatar-stack">
-                                @if (group.ParticipantNames != null)
+                                @if (group.ParticipantNames != null && group.ParticipantNames.Any())
                                 {
                                     @foreach (var name in group.ParticipantNames)
                                     {
@@ -73,28 +81,50 @@
              OnClose="() => showCreateModal = false"
              OnCreated="HandleGroupCreated" />
 
+             <Invitations IsVisible="showInviteModal" 
+                  OnClose="() => showInviteModal = false" 
+                  OnInvitationProcessed="LoadGroups" />
+
 
 @code {
     private List<GroupDto> groups = new();
     private bool showEditModal = false;
     private bool showCreateModal = false;
     private GroupDto? selectedGroup = null;
+    private bool showInviteModal = false;
+    private int unreadCount = 0;
 
     protected override async Task OnInitializedAsync() => await LoadGroups();
+
+    private void OpenInvites()
+    {
+        showInviteModal = true;
+        StateHasChanged();
+    }
+
+   
 
     private async Task LoadGroups()
     {
         groups = await FinancialService.GetGroupsAsync();
+        var invites = await FinancialService.GetMyInvitationsAsync();
+        unreadCount = invites?.Count ?? 0;
         StateHasChanged();
     }
 
-    private string GetCurrencySymbol(string? code) => code?.ToUpper() switch
+
+    private string GetCurrencySymbol(string? code)
     {
-        "USD" => "$",
-        "EUR" => "€",
-        "UAH" => "₴",
-        _ => "₴"
-    };
+        if (string.IsNullOrEmpty(code)) return "₴";
+
+        return code.Trim().ToUpper() switch
+        {
+            "USD" => "$",
+            "EUR" => "€",
+            "UAH" => "₴",
+            _ => "₴"
+        };
+    }
 
     private void OpenEditGroup(GroupDto group)
     {
@@ -113,15 +143,16 @@
         var success = await FinancialService.UpdateGroupAsync(updatedGroup);
         if (success)
         {
-            var index = groups.FindIndex(g => g.Id == updatedGroup.Id);
-            if (index != -1)
-            {
-                groups[index] = updatedGroup;
-            }
-
-            CloseEditModal();
-            StateHasChanged();
+            await LoadGroups();
+            showEditModal = false;
+            selectedGroup = null;
+            StateHasChanged(); 
         }
+    }
+
+    private void NavigateToGroup(string groupId)
+    {
+        Nav.NavigateTo($"/group/{groupId}");
     }
 
     private async Task HandleDeleteGroup(string groupId)
@@ -132,13 +163,18 @@
             CloseEditModal();
         }
     }
-
+    private string GetParticipantLabel(int count)
+    {
+        if (count % 10 == 1 && count % 100 != 11) return "учасник";
+        if (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20)) return "учасники";
+        return "учасників";
+    }
     private void OpenCreateGroupModal() => showCreateModal = true;
 
     private async Task HandleGroupCreated(GroupDto newGroup)
     {
-        await LoadGroups();
-        showCreateModal = false;
-        StateHasChanged();
+        await LoadGroups(); 
+        showCreateModal = false; 
+        StateHasChanged(); 
     }
 }

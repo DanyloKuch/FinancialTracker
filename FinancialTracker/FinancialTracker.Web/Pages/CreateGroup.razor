@@ -71,7 +71,7 @@
 
     private string groupName = "";
     private string baseCurrency = "UAH";
-    private decimal totalLimit = 0; 
+    private decimal totalLimit = 0;
     private List<string> participants = new();
     private string newEmail = "";
 
@@ -91,30 +91,60 @@
 
     private void RemoveParticipant(string email) => participants.Remove(email);
 
-    
-
     private async Task CreateNewGroup()
     {
         if (string.IsNullOrWhiteSpace(groupName)) return;
 
-        var newGroup = new GroupDto
+        if (!string.IsNullOrWhiteSpace(newEmail))
+        {
+            AddParticipant();
+        }
+
+        var groupToCreate = new GroupDto
             {
                 Name = groupName,
                 BaseCurrency = baseCurrency,
-                TotalLimit = totalLimit,
-                ParticipantNames = participants
+                TotalLimit = totalLimit
             };
 
-        var response = await FinancialService.CreateGroupAsync(newGroup);
-        await OnCreated.InvokeAsync(response ?? newGroup);
-        Close();
+        var createdGroup = await FinancialService.CreateGroupAsync(groupToCreate);
+
+        if (createdGroup != null && !string.IsNullOrEmpty(createdGroup.Id))
+        {
+            if (participants.Any())
+            {
+                foreach (var email in participants)
+                {
+                    var inviteRequest = new InviteUserRequest
+                        {
+                            GroupId = Guid.Parse(createdGroup.Id),
+                            Email = email
+                        };
+                    await FinancialService.SendInvitationAsync(inviteRequest);
+                }
+            }
+            else
+            {
+                Console.WriteLine("Список учасників порожній.");
+            }
+
+            await OnCreated.InvokeAsync(createdGroup);
+            CloseFields();
+            await OnClose.InvokeAsync();
+        }
     }
 
-    private void Close()
+    private void CloseFields()
     {
         groupName = "";
-        totalLimit = 0; 
+        totalLimit = 0;
         participants.Clear();
-        OnClose.InvokeAsync();
+        newEmail = "";
+    }
+
+    private async Task Close()
+    {
+        CloseFields();
+        await OnClose.InvokeAsync();
     }
 }

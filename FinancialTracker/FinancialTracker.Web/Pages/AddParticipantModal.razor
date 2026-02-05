@@ -1,0 +1,127 @@
+﻿@using FinancialTracker.Web.Models
+@using FinancialTracker.Web.Services
+@inject FinancialService FinancialService
+
+@if (IsVisible)
+{
+    <div class="edit-group-overlay" @onclick="Close">
+        <div class="edit-group-modal" @onclick:stopPropagation>
+            <div class="modal-header">
+                <h3>Додати учасників</h3>
+                <span class="cancel-link" @onclick="Close">Скасувати</span>
+            </div>
+
+            <div class="modal-body">
+                <div class="invite-section">
+                    <label>Електронна пошта</label>
+                    <span class="mail-icon">✉</span>
+                </div>
+
+                <div class="email-input-container">
+                    <input type="email"
+                           @bind="newEmail"
+                           @bind:event="oninput"
+                           @onkeypress="HandleEmailKeyPress"
+                           placeholder="Введіть email та натисніть Enter" />
+                </div>
+
+                <div class="email-tags">
+                    @if (pendingEmails.Any())
+                    {
+                        @foreach (var email in pendingEmails)
+                        {
+                            <div class="email-tag">
+                                <span>@email</span>
+                                <span class="remove-tag" @onclick="() => RemoveEmail(email)">×</span>
+                            </div>
+                        }
+                    }
+                </div>
+
+                <div class="copy-link" @onclick="CopyInviteLink">
+                    <span class="link-icon">🔗</span>
+                    <span>Скопіювати посилання для запрошення</span>
+                </div>
+
+                <button class="btn-save" @onclick="SendAllInvites" disabled="@(!pendingEmails.Any())">
+                    Надіслати запити (@pendingEmails.Count)
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+
+
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public string GroupId { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private string newEmail = "";
+    private List<string> pendingEmails = new List<string>();
+
+    private void HandleEmailKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            AddEmailToPending();
+        }
+    }
+
+    private void AddEmailToPending()
+    {
+        if (!string.IsNullOrWhiteSpace(newEmail) && !pendingEmails.Contains(newEmail))
+        {
+            if (newEmail.Contains("@")) 
+            {
+                pendingEmails.Add(newEmail);
+                newEmail = "";
+                StateHasChanged();
+            }
+        }
+    }
+
+    private void RemoveEmail(string email)
+    {
+        pendingEmails.Remove(email);
+    }
+
+    private async Task SendAllInvites()
+    {
+        if (!pendingEmails.Any()) return;
+
+        try
+        {
+            foreach (var email in pendingEmails)
+            {
+                var request = new InviteUserRequest
+                    {
+                        GroupId = Guid.Parse(GroupId),
+                        Email = email
+                    };
+                await FinancialService.SendInvitationAsync(request);
+            }
+
+            pendingEmails.Clear();
+            await OnClose.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error sending invites: {ex.Message}");
+        }
+    }
+
+    private void Close()
+    {
+        newEmail = "";
+        pendingEmails.Clear();
+        OnClose.InvokeAsync();
+    }
+
+    private void CopyInviteLink()
+    {
+        Console.WriteLine("Link copied");
+    }
+}

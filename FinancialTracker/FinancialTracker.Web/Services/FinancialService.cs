@@ -157,19 +157,18 @@ namespace FinancialTracker.Web.Services
             }
         }
 
-<<<<<<< HEAD
+
         public async Task<bool> UpdateGroupAsync(GroupDto group)
         {
             await SetTokenAsync();
-            try
+            var response = await _http.PutAsJsonAsync($"api/v1/groups/{group.Id}", group);
+
+            if (!response.IsSuccessStatusCode)
             {
-                var response = await _http.PutAsJsonAsync($"api/v1/groups/{group.Id}", group);
-                return response.IsSuccessStatusCode;
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"SERVER ERROR: {errorContent}");
             }
-            catch
-            {
-                return false;
-            }
+            return response.IsSuccessStatusCode;
         }
 
         public async Task<bool> DeleteGroupAsync(string groupId)
@@ -189,27 +188,23 @@ namespace FinancialTracker.Web.Services
         public async Task<GroupDto?> CreateGroupAsync(GroupDto newGroup)
         {
             await SetTokenAsync();
+            var response = await _http.PostAsJsonAsync("api/v1/groups", newGroup);
 
-            try
+            if (response.IsSuccessStatusCode)
             {
-                var response = await _http.PostAsJsonAsync("api/v1/groups", newGroup);
+                var createdId = await response.Content.ReadAsStringAsync();
 
-                if (response.IsSuccessStatusCode)
+                createdId = createdId.Trim('"');
+
+                return new GroupDto
                 {
-                    return await response.Content.ReadFromJsonAsync<GroupDto>();
-                }
-
-                return null;
+                    Id = createdId, 
+                    Name = newGroup.Name
+                };
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error creating group: {ex.Message}");
-                return null;
-            }
+            return null;
         }
-=======
 
->>>>>>> origin/main
         public async Task<FinancialSummaryResponse> GetFinancialSummaryAsync()
         {
             await SetTokenAsync();
@@ -266,9 +261,49 @@ namespace FinancialTracker.Web.Services
                 return false;
             }
         }
-<<<<<<< HEAD
+        public async Task SendInvitationAsync(InviteUserRequest request)
+        {
+            await SetTokenAsync();
 
-=======
->>>>>>> origin/main
+            var response = await _http.PostAsJsonAsync("api/v1/invitations", request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+            }
+            else
+            {
+                Console.WriteLine("SUCCESS: Invitation sent!");
+            }
+        }
+        public async Task<List<InvitationDto>> GetMyInvitationsAsync()
+        {
+            await SetTokenAsync(); 
+            try
+            {
+                var response = await _http.GetFromJsonAsync<List<InvitationDto>>("api/v1/invitations/received");
+                return response ?? new List<InvitationDto>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Помилка при отриманні запрошень: {ex.Message}");
+                return new List<InvitationDto>();
+            }
+        }
+
+        public async Task<bool> RespondToInvitationAsync(Guid invitationId, bool accept)
+        {
+            var request = new RespondInvitationRequest { IsAccepted = accept };
+            var response = await _http.PostAsJsonAsync($"api/v1/invitations/{invitationId}/respond", request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Помилка сервера: {errorContent}");
+            }
+
+            return response.IsSuccessStatusCode;
+        }
+
     }
 }

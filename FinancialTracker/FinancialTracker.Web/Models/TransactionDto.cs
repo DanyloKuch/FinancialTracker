@@ -4,11 +4,13 @@
     {
         public Guid Id { get; set; }
         public decimal Amount { get; set; }
-        public int Type { get; set; } // 0=Income, 1=Expense, 2=Transfer
+        public int Type { get; set; } 
         public string Comment { get; set; } = "";
         public DateTime CreatedAt { get; set; }
         public Guid? CategoryId { get; set; }
         public Guid WalletId { get; set; }
         public Guid? TargetWalletId { get; set; }
+        public string UserEmail { get; set; } = string.Empty;
+        public Guid? GroupId { get; set; }
     }
 }

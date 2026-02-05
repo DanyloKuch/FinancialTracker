@@ -6,12 +6,21 @@ namespace FinancialTracker.Web.Models
     {
         public string Id { get; set; }
         public string Name { get; set; }
-        public decimal TotalLimit { get; set; }
+        public decimal? TotalLimit { get; set; }
         public DateTime CreatedAt { get; set; }
 
-        [JsonPropertyName("baseCurrency")] 
-        public string BaseCurrency { get; set; }
-        public List<string> ParticipantNames { get; set; } = new();
+        public string? BaseCurrency { get; set; }
 
+        [JsonPropertyName("members")]
+        public List<GroupMemberDto> Members { get; set; } = new();
+        public List<string> ParticipantNames => Members?.Select(m => m.UserId.ToString()).ToList() ?? new List<string>();
+    }
+
+
+    public class GroupMemberDto
+    {
+        [JsonPropertyName("userId")]
+        public Guid UserId { get; set; }
     }
 }
+

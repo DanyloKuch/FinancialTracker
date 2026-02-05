@@ -1,0 +1,265 @@
+﻿@page "/group/{GroupId:guid}"
+@using FinancialTracker.Web.Models
+@using FinancialTracker.Web.Services
+@inject FinancialService FinancialService
+@inject NavigationManager Nav
+
+<div class="dashboard-wrapper">
+    <div class="side-panel @(isSidebarOpen ? "open" : "")">
+        <div class="panel-content">
+            <div class="panel-header">
+                <button class="icon-btn edit-members-btn" @onclick="() => OpenEditGroup(currentGroup)">⚙</button>
+
+                <h3>Учасники групи</h3>
+
+                <button class="close-btn" @onclick="ToggleSidebar">〈</button>
+            </div>
+
+            <div class="members-list">
+                @if (currentGroup?.ParticipantNames != null)
+                {
+                    @foreach (var name in currentGroup.ParticipantNames)
+                    {
+                        <div class="member-row">
+                            <div class="member-avatar">@name[0].ToString().ToUpper()</div>
+                            <span class="member-name">@name</span>
+                        </div>
+                    }
+                }
+            </div>
+
+            <div class="add-member-footer">
+                <button class="add-member-btn"
+                        @onclick="ShowAddMemberModal"
+                @onclick:stopPropagation
+                        style="position: relative; z-index: 10005; cursor: pointer;">
+                    <span class="plus-sign">+</span> Додати до групи
+                </button>
+            </div>
+        </div>
+    </div>
+    <header class="top-bar">
+        <div class="header-left">
+            <button class="icon-btn" @onclick='() => Nav.NavigateTo("/groups")'>←</button>
+            <button class="icon-btn" @onclick="ToggleSidebar">👥</button>
+        </div>
+
+        <div class="group-title-center">
+            <h2 style="margin:0; font-size: 1.1rem;">
+                @currentGroup?.Name
+            </h2>
+        </div>
+
+        <div class="group-actions">
+            <span class="edit-icon" @onclick="() => OpenEditGroup(currentGroup)">✎</span>
+        </div>
+    </header>
+
+
+
+    <div class="dashboard-content">
+        <div class="balance-section">
+            <span class="label">Залишок бюджету групи</span>
+            <h1 class="balance-amount">
+                @currentBalance.ToString("N2") @GetCurrencySymbol(currentGroup?.BaseCurrency)
+            </h1>
+            <div class="progress-container" style="background: #222; height: 10px; border-radius: 10px; margin-top: 15px; width: 100%; overflow: hidden; border: 1px solid #333;">
+                <div class="progress-fill"
+                     style="width: @(progressPercentage.ToString("F0", System.Globalization.CultureInfo.InvariantCulture))%;
+                    background: linear-gradient(90deg, #00E5FF, #448AFF);
+                    height: 100%;
+                    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+                    box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);">
+                </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.85rem; color: #888;">
+                <span>Витрачено: @totalSpent.ToString("N0") @GetCurrencySymbol(currentGroup?.BaseCurrency)</span>
+                <span>Ліміт: @initialBank.ToString("N0") @GetCurrencySymbol(currentGroup?.BaseCurrency)</span>
+            </div>
+        </div>
+
+        <div class="cards-row">
+            <div class="action-card expense-card">
+                <div class="card-top">
+                    <button class="add-btn" @onclick="OpenAddExpense">📅 + Додати</button>
+                </div>
+                <div class="card-bottom">
+                    <span>Загальні витрати</span>
+                    <h3>@totalSpent.ToString("N2") @GetCurrencySymbol(currentGroup?.BaseCurrency)</h3>
+                </div>
+            </div>
+
+        </div>
+        <div class="main-grid">
+            <div class="grid-col">
+                <div class="section-header">
+                    <h3>Останні транзакції групи</h3>
+                </div>
+
+                <div class="transactions-list">
+                    @if (groupTransactions != null && groupTransactions.Any())
+                    {
+                        @foreach (var tx in groupTransactions)
+                        {
+                            <div class="trans-item">
+                                <div class="trans-icon-circle">🛒</div>
+                                <div class="trans-details">
+                                    <div class="trans-title">
+                                        @(string.IsNullOrEmpty(tx.Comment) ? "Витрата групи" : tx.Comment)
+                                    </div>
+                                    <div class="trans-date">
+                                        @tx.CreatedAt.ToString("dd MMMM") • <b>@tx.UserEmail</b>
+                                    </div>
+                                </div>
+                                <div class="trans-sum text-white">
+                                    -@tx.Amount.ToString("N0") @GetCurrencySymbol(currentGroup?.BaseCurrency)
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="loading-text">Транзакцій поки немає...</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <div class="nav-item" @onclick='() => Nav.NavigateTo("/")'><span class="nav-icon">👛</span><span>Баланс</span></div>
+        <div class="nav-item"><span class="nav-icon">📈</span><span>Статистика</span></div>
+        <div class="nav-item center-btn">
+            <button class="plus-btn" @onclick="OpenAddExpense">+</button>
+            <span>Витрата</span>
+        </div>
+        <div class="nav-item active" @onclick='() => Nav.NavigateTo("/groups")'><span class="nav-icon">👥</span><span>Групи</span></div>
+        <div class="nav-item"><span class="nav-icon">•••</span><span>Більше</span></div>
+    </nav>
+</div>
+<EditGroup IsVisible="showEditModal"
+           Group="selectedGroup"
+           OnClose="CloseEditModal"
+           OnSave="HandleSaveGroup"
+           OnDelete="HandleDeleteGroup" />
+
+<AddParticipantModal IsVisible="showAddMemberModal"
+                     GroupId="@GroupId.ToString()"
+                     OnClose="CloseAddMemberModal" />
+
+@code {
+    [Parameter] public Guid GroupId { get; set; }
+
+    private GroupDto? currentGroup;
+    private List<TransactionDto> groupTransactions = new();
+    private bool showEditModal = false;
+    private GroupDto? selectedGroup = null;
+    private bool showAddMemberModal = false;
+    private bool isSidebarOpen = false;
+    private decimal initialBank = 0;
+    private decimal totalSpent = 0;
+    private decimal currentBalance = 0;
+    private double progressPercentage = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        var groups = await FinancialService.GetGroupsAsync();
+        currentGroup = groups.FirstOrDefault(g => g.Id == GroupId.ToString());
+
+        if (currentGroup != null)
+        {
+            initialBank = currentGroup.TotalLimit ?? 0;
+            var result = await FinancialService.GetTransactionsAsync(page: 1, pageSize: 100);
+
+            groupTransactions = result.Items
+                .Where(t => t.GroupId == GroupId)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToList();
+
+            totalSpent = groupTransactions.Where(t => t.Type == 1).Sum(t => t.Amount);
+            currentBalance = initialBank - totalSpent;
+
+            
+            if (initialBank > 0)
+            {
+                progressPercentage = (double)((totalSpent / initialBank) * 100);
+
+                if (progressPercentage > 100) progressPercentage = 100;
+                if (progressPercentage < 0) progressPercentage = 0;
+            }
+            else
+            {
+                progressPercentage = 0;
+            }
+        }
+    }
+
+    private void ShowAddMemberModal()
+    {
+        Console.WriteLine("DEBUG: Спроба відкрити модалку учасників");
+        showAddMemberModal = true;
+        StateHasChanged();
+    }
+
+    private async Task CloseAddMemberModal()
+    {
+        showAddMemberModal = false;
+        await LoadData();
+        StateHasChanged();
+    }
+
+    private void ToggleSidebar() => isSidebarOpen = !isSidebarOpen;
+    private void OpenEditGroup(GroupDto group)
+    {
+        selectedGroup = group;
+        showEditModal = true;
+    }
+
+    private void CloseEditModal()
+    {
+        showEditModal = false;
+        selectedGroup = null;
+    }
+
+    private async Task HandleSaveGroup(GroupDto updatedGroup)
+    {
+        var success = await FinancialService.UpdateGroupAsync(updatedGroup);
+        if (success)
+        {
+            currentGroup = updatedGroup;
+            await LoadData();
+            CloseEditModal();
+        }
+    }
+
+    private async Task HandleDeleteGroup(string groupId)
+    {
+        if (await FinancialService.DeleteGroupAsync(groupId))
+        {
+            CloseEditModal();
+            Nav.NavigateTo("/groups");
+        }
+    }
+
+    private void OpenAddExpense()
+    {
+        // Тепер ведемо на спеціальну сторінку групових витрат
+        Nav.NavigateTo($"/add-group-expense/{GroupId}");
+    }
+
+    private string GetCurrencySymbol(string? currencyCode)
+    {
+        return currencyCode?.ToUpper() switch
+        {
+            "USD" => "$",
+            "EUR" => "€",
+            "UAH" => "₴",
+            _ => currencyCode ?? "₴"
+        };
+    }
+}
