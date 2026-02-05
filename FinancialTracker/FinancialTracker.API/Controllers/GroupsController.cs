@@ -69,17 +69,46 @@ namespace FinancialTracker.API.Controllers
 
             return Ok(result.Value);
         }
-        [HttpDelete("{id:guid}")]
-        public async Task<IActionResult> DeleteOrLeaveGroup(Guid id)
+        
+        [HttpDelete("{groupId:guid}/kikcmembers/{memberId:guid}")]
+        public async Task<IActionResult> KickMember(Guid groupId, Guid memberId)
         {
-            var result = await _groupService.DeleteOrLeaveGroupAsync(id);
+            var result = await _groupService.KickMemberAsync(groupId, memberId);
+
+            if (result.IsFailure)
+            {
+                
+                return BadRequest(result.Error);
+            }
+
+            return Ok(new { message = "Member removed successfully." });
+        }
+
+     
+        [HttpPost("{groupId:guid}/leave")]
+        public async Task<IActionResult> LeaveGroup(Guid groupId)
+        {
+            var result = await _groupService.LeaveGroupAsync(groupId);
 
             if (result.IsFailure)
             {
                 return BadRequest(result.Error);
             }
 
-            return Ok(new { message = "Successfully processed request." });
+            return Ok(new { message = "You have left the group." });
+        }
+        [HttpDelete("{id:guid}")]
+        public async Task<IActionResult> DeleteGroup(Guid id)
+        {
+            var result = await _groupService.DeleteGroupAsync(id);
+
+            if (result.IsFailure)
+            {
+            
+                return BadRequest(result.Error);
+            }
+
+            return Ok(new { message = "Group deleted successfully." });
         }
     }
 }

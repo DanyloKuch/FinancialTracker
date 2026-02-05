@@ -15,5 +15,8 @@ namespace FinancialTracker.Domain.Interfaces
         Task<Result<Dictionary<TransactionType, decimal>>> GetTotalsGroupedByType(Guid userId);
         Task<Result<(IReadOnlyList<Transaction> Items, int TotalCount)>> GetAllTransactionByGroup(Guid groupId, int page, int pageSize);
         Task<decimal> GetTotalByCategoryIdAsync(Guid userId, Guid categoryId);
+        Task<Dictionary<Guid, (decimal Income, decimal Expense)>> GetWalletStatsAsync(Guid userId);
+        Task<Dictionary<Guid, decimal>> GetCategorySpendingAsync(Guid userId);
+        Task<Dictionary<Guid, decimal>> GetGroupSpendingAsync(Guid userId);
     }
 }   
