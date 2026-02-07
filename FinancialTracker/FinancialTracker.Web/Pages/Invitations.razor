@@ -1,0 +1,141 @@
+﻿@using FinancialTracker.Web.Models
+@using FinancialTracker.Web.Services
+@inject FinancialService FinancialService
+
+@if (IsVisible)
+{
+    <div class="edit-group-overlay" @onclick="Close">
+        <div class="edit-group-modal" @onclick:stopPropagation>
+            <div class="modal-header">
+                <h3>Запрошення</h3>
+                <span class="cancel-link" @onclick="Close">Закрити</span>
+            </div>
+
+            <div class="modal-body">
+                @if (invitationsUI == null)
+                {
+                    <p style="text-align:center">Завантаження...</p>
+                }
+                else if (!invitationsUI.Any())
+                {
+                    <p style="text-align:center; color: #8e8e93; padding: 20px 0;">
+                        У вас немає нових запрошень
+                    </p>
+                }
+                else
+                {
+                    <div class="invitations-scroll-list">
+                        @foreach (var invite in invitationsUI)
+                        {
+                            <div class="invite-item-card @(invite.ResultStatus != null ? "processed" : "")">
+                                <div class="invite-info">
+                                    <div class="invite-avatar">✉</div>
+                                    <div class="invite-text">
+                                        <strong>Запрошення в групу</strong>
+                                        <p>Від: @invite.Data.InviterId</p>
+                                    </div>
+
+                                    @if (invite.ResultStatus == "accepted")
+                                    {
+                                        <span class="status-badge status-accepted">Прийнято</span>
+                                    }
+                                    else if (invite.ResultStatus == "rejected")
+                                    {
+                                        <span class="status-badge status-rejected">Відхилено</span>
+                                    }
+                                </div>
+
+                                @if (invite.ResultStatus == null)
+                                {
+                                    <div class="invite-actions-row">
+                                        <button class="btn-accept" @onclick="() => ProcessInvitation(invite, true)">Прийняти</button>
+                                        <button class="btn-reject" @onclick="() => ProcessInvitation(invite, false)">Відхилити</button>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnInvitationProcessed { get; set; }
+
+    private class InvitationUI
+    {
+        public InvitationDto Data { get; set; } = null!;
+        public string? ResultStatus { get; set; }
+    }
+
+    private List<InvitationUI>? invitationsUI;
+    private bool isProcessing = false;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsVisible && invitationsUI == null)
+        {
+            await LoadInvitations();
+        }
+    }
+
+    private async Task LoadInvitations()
+    {
+        var data = await FinancialService.GetMyInvitationsAsync();
+        if (data != null)
+        {
+            invitationsUI = data.Select(i => new InvitationUI
+                {
+                    Data = i,
+                    ResultStatus = i.Status switch
+                    {
+                        "Accepted" => "accepted",
+                        "Rejected" => "rejected",
+                        _ => null 
+                    }
+                })
+            .OrderBy(i => i.ResultStatus != null) 
+            .ToList();
+        }
+    }
+
+    private async Task ProcessInvitation(InvitationUI invite, bool accept)
+    {
+        if (isProcessing || invite.ResultStatus != null) return;
+        isProcessing = true;
+
+        try
+        {
+            await FinancialService.RespondToInvitationAsync(invite.Data.Id, accept);
+            invite.ResultStatus = accept ? "accepted" : "rejected";
+            invitationsUI = invitationsUI?
+                .OrderBy(i => i.ResultStatus != null)
+                .ThenByDescending(i => i.Data.Id)
+                .ToList();
+
+            if (accept)
+            {
+                await OnInvitationProcessed.InvokeAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error responding: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Close()
+    {
+        invitationsUI = null;
+        await OnClose.InvokeAsync();
+    }
+}

@@ -117,11 +117,27 @@ namespace FinancialTracker.Web.Services
             await SetTokenAsync();
             try
             {
-                return await _http.GetFromJsonAsync<List<GroupDto>>("api/v1/groups") ?? new List<GroupDto>();
-            }
-            catch { return new List<GroupDto>(); }
-        }
+                var responseString = await _http.GetStringAsync("api/v1/groups");
 
+                if (responseString.Trim().StartsWith("["))
+                {
+                    return System.Text.Json.JsonSerializer.Deserialize<List<GroupDto>>(responseString,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase })
+                        ?? new List<GroupDto>();
+                }
+
+                var apiResponse = System.Text.Json.JsonSerializer.Deserialize<ApiResponse<List<GroupDto>>>(responseString,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+
+                return apiResponse?.Value ?? new List<GroupDto>();
+            }
+            catch (Exception ex)
+            {
+                return new List<GroupDto>();
+            }
+
+
+        }
         public async Task<Guid?> CreateTransactionAsync(TransactionCreateDto model)
         {
             await SetTokenAsync();
@@ -141,6 +157,64 @@ namespace FinancialTracker.Web.Services
             }
         }
 
+
+        public async Task<bool> UpdateGroupAsync(GroupDto group)
+        {
+            await SetTokenAsync();
+            var response = await _http.PutAsJsonAsync($"api/v1/groups/{group.Id}", group);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"SERVER ERROR: {errorContent}");
+            }
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<(bool IsSuccess, string? ErrorMessage)> DeleteGroupAsync(string groupId)
+        {
+            await SetTokenAsync();
+            try
+            {
+                var response = await _http.DeleteAsync($"api/v1/groups/{groupId}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return (true, null);
+                }
+                if (response.StatusCode == System.Net.HttpStatusCode.Forbidden ||
+                    response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                {
+                    return (false, "Ви не можете видалити цю групу, бо ви не є власником");
+                }
+
+                return (false, "Сталася помилка при видаленні");
+            }
+            catch
+            {
+                return (false, "Помилка з'єднання з сервером");
+            }
+        }
+
+        public async Task<GroupDto?> CreateGroupAsync(GroupDto newGroup)
+        {
+            await SetTokenAsync();
+            var response = await _http.PostAsJsonAsync("api/v1/groups", newGroup);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var createdId = await response.Content.ReadAsStringAsync();
+
+                createdId = createdId.Trim('"');
+
+                return new GroupDto
+                {
+                    Id = createdId, 
+                    Name = newGroup.Name
+                };
+            }
+            return null;
+        }
 
         public async Task<FinancialSummaryResponse> GetFinancialSummaryAsync()
         {
@@ -214,5 +288,71 @@ namespace FinancialTracker.Web.Services
                 return null;
             }
         }
+        public async Task SendInvitationAsync(InviteUserRequest request)
+        {
+            await SetTokenAsync();
+            var response = await _http.PostAsJsonAsync("api/v1/invitations", request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Сервер повернув помилку: {response.StatusCode} - {error}");
+            }
+        }
+
+        public async Task<bool> AddMemberByEmailAsync(string groupId, string email)
+        {
+            await SetTokenAsync();
+            var request = new InviteUserRequest
+            {
+                GroupId = Guid.Parse(groupId),
+                Email = email 
+            };
+
+            var response = await _http.PostAsJsonAsync("api/v1/invitations", request);
+            return response.IsSuccessStatusCode;
+        }
+        public async Task<List<InvitationDto>> GetMyInvitationsAsync()
+        {
+            await SetTokenAsync(); 
+            try
+            {
+                var response = await _http.GetFromJsonAsync<List<InvitationDto>>("api/v1/invitations/received");
+                return response ?? new List<InvitationDto>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Помилка при отриманні запрошень: {ex.Message}");
+                return new List<InvitationDto>();
+            }
+        }
+
+        public async Task<bool> RespondToInvitationAsync(Guid invitationId, bool accept)
+        {
+            var request = new RespondInvitationRequest { IsAccepted = accept };
+            var response = await _http.PostAsJsonAsync($"api/v1/invitations/{invitationId}/respond", request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Помилка сервера: {errorContent}");
+            }
+
+            return response.IsSuccessStatusCode;
+        }
+        public async Task<bool> KickMemberAsync(string groupId, string memberId)
+        {
+            await SetTokenAsync(); 
+            var response = await _http.DeleteAsync($"api/v1/Groups/{groupId}/kikcmembers/{memberId}");
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> LeaveGroupAsync(string groupId)
+        {
+            var response = await _http.PostAsync($"/api/v1/Groups/{groupId}/leave", null);
+            return response.IsSuccessStatusCode;
+        }
+
     }
+
 }

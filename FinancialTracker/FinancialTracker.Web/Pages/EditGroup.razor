@@ -1,0 +1,249 @@
+﻿@using FinancialTracker.Web.Models
+@using FinancialTracker.Web.Services
+@inject FinancialService FinancialService
+@inject NavigationManager Nav
+
+@if (IsVisible && Group != null)
+{
+    <div class="edit-group-overlay" @onclick="HandleOverlayClick">
+        <div class="edit-group-modal" @onclick:stopPropagation>
+            <div class="modal-header">
+                <h3>Редагувати групу</h3>
+                <span class="cancel-link" @onclick="Close">Скасувати</span>
+            </div>
+
+            <div class="modal-body">
+                <label>Назва групи</label>
+                <input type="text" @bind="editedName" placeholder="Змінити назву групи" />
+
+                <label>Оберіть валюту</label>
+                <select class="currency-select" value="@editedCurrency" @onchange="HandleCurrencyChange">
+                    <option value="UAH">₴ Українська гривня</option>
+                    <option value="USD">$ Долар США</option>
+                    <option value="EUR">€ Євро</option>
+                </select>
+
+                <div class="invite-section">
+                    <label>Запросити учасників</label>
+                    <span class="mail-icon">✉</span>
+                </div>
+                <div class="email-input-container">
+                    <input type="email"
+                           @bind="newEmail"
+                           @bind:event="oninput"
+                           @onkeypress="HandleEmailKeyPress"
+                           placeholder="Введіть email учасника" />
+                </div>
+                <div class="email-tags">
+                    @if (Group?.Members != null)
+                    {
+                        @for (int i = 0; i < Group.Members.Count; i++)
+                        {
+                            var member = Group.Members[i];
+                            var isOwner = (i == 0);
+
+                            <div class="email-tag existing-member @(isOwner ? "owner-tag" : "")">
+                                <span class="member-status-icon">@(isOwner ? "👑" : "👤")</span>
+                                <span>@member.UserId.ToString().Substring(0, 8)...</span>
+
+                                @if (!isOwner)
+                                {
+                                    <span class="remove-tag" @onclick="() => KickMember(member.UserId.ToString())">×</span>
+                                }
+                            </div>
+                        }
+                    }
+
+                    @foreach (var email in editedParticipants)
+                    {
+                        <div class="email-tag new-invite">
+                            <span class="member-status-icon">✉</span>
+                            <span>@email</span>
+                            <span class="remove-tag" @onclick="() => RemoveFromQueue(email)">×</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="copy-link">
+                    <span>🔗 Скопіювати посилання для запрошення</span>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn-save" @onclick="SaveGroup">Зберегти</button>
+                    <button class="btn-delete" @onclick="DeleteGroup">Видалити</button>
+
+                    @if (!string.IsNullOrEmpty(deleteErrorMessage))
+                    {
+                        <div class="delete-error-msg">
+                            @deleteErrorMessage
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public GroupDto? Group { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<GroupDto> OnSave { get; set; }
+    [Parameter] public EventCallback<string> OnDelete { get; set; }
+    private string? deleteErrorMessage;
+    private string editedName = "";
+    private string editedCurrency = "UAH";
+    private List<string> editedParticipants = new List<string>(); 
+    private string newEmail = "";
+    private string _lastGroupId = "";
+
+
+    protected override void OnParametersSet()
+    {
+        if (IsVisible && Group != null && _lastGroupId != Group.Id)
+        {
+            editedName = Group.Name ?? "";
+            editedCurrency = !string.IsNullOrEmpty(Group.BaseCurrency) ? Group.BaseCurrency : "UAH";
+            editedParticipants = new List<string>();
+            _lastGroupId = Group.Id;
+        }
+
+        if (!IsVisible)
+        {
+            _lastGroupId = "";
+            newEmail = "";
+        }
+    }
+
+       private async Task KickMember(string userId)
+    {
+        if (Group == null) return;
+        
+        var success = await FinancialService.KickMemberAsync(Group.Id, userId);
+        if (success)
+        {
+            Group.Members.RemoveAll(m => m.UserId.ToString() == userId);
+            StateHasChanged();
+        }
+    }
+
+    private void RemoveFromQueue(string email)
+    {
+        editedParticipants.Remove(email);
+        StateHasChanged();
+    }
+    
+
+    private void HandleEmailKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            AddParticipant();
+        }
+    }
+
+    private void AddParticipant()
+    {
+        if (!string.IsNullOrWhiteSpace(newEmail) && !editedParticipants.Contains(newEmail))
+        {
+            editedParticipants.Add(newEmail);
+            newEmail = "";
+            StateHasChanged();
+        }
+    }
+
+    private void RemoveParticipant(string email)
+    {
+        editedParticipants.Remove(email);
+        StateHasChanged();
+    }
+
+    private async Task SaveGroup()
+    {
+        if (Group == null) return;
+
+        var groupIdCopy = Group.Id;
+        var existingParticipantsCopy = Group.ParticipantNames != null
+            ? new List<string>(Group.ParticipantNames)
+            : new List<string>();
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(newEmail))
+            {
+                AddParticipant();
+            }
+
+            var updated = new GroupDto
+                {
+                    Id = groupIdCopy,
+                    Name = editedName,
+                    BaseCurrency = editedCurrency,
+                    TotalLimit = Group.TotalLimit,
+                    CreatedAt = Group.CreatedAt
+                };
+
+            await OnSave.InvokeAsync(updated);
+
+            var modalEmails = editedParticipants ?? new List<string>();
+
+            var newParticipants = modalEmails
+                .Where(p => !string.IsNullOrWhiteSpace(p) && !existingParticipantsCopy.Contains(p))
+                .ToList();
+
+            if (newParticipants.Any())
+            {
+                foreach (var email in newParticipants)
+                {
+                    if (string.IsNullOrEmpty(groupIdCopy)) continue;
+
+                    var inviteRequest = new InviteUserRequest
+                        {
+                            GroupId = Guid.Parse(groupIdCopy),
+                            Email = email
+                        };
+
+                    await FinancialService.SendInvitationAsync(inviteRequest);
+                }
+            }
+
+            Close();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG] ПОМИЛКА: {ex.Message}");
+        }
+    }
+    private void HandleCurrencyChange(ChangeEventArgs e)
+    {
+        editedCurrency = e.Value?.ToString() ?? "UAH";
+    }
+
+    private async Task DeleteGroup()
+    {
+        if (Group == null) return;
+
+        deleteErrorMessage = null;
+        var result = await FinancialService.DeleteGroupAsync(Group.Id);
+
+        if (result.IsSuccess)
+        {
+            Close();
+            Nav.NavigateTo("/groups");
+        }
+        else
+        {
+            deleteErrorMessage = result.ErrorMessage;
+            StateHasChanged();
+        }
+    }
+
+    private void HandleOverlayClick() => Close();
+
+    private void Close()
+    {
+        _lastGroupId = "";
+        newEmail = "";
+        OnClose.InvokeAsync();
+    }
+}

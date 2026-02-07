@@ -1,0 +1,150 @@
+﻿@using FinancialTracker.Web.Models
+@using FinancialTracker.Web.Services
+@inject FinancialService FinancialService
+
+@if (IsVisible)
+{
+    <div class="create-group-overlay" @onclick="Close">
+        <div class="create-group-modal" @onclick:stopPropagation>
+            <div class="modal-header">
+                <h3>Створити групу</h3>
+                <span class="cancel-link" @onclick="Close">Скасувати</span>
+            </div>
+
+            <div class="modal-body">
+                <label>Назва групи</label>
+                <input type="text" @bind="groupName" placeholder="Введіть назву групи" />
+
+                <label>Оберіть валюту</label>
+                <select class="currency-select" @bind="baseCurrency">
+                    <option value="UAH">₴ Українська гривня</option>
+                    <option value="USD">$ Долар США</option>
+                    <option value="EUR">€ Євро</option>
+                </select>
+
+                <label>Загальний ліміт</label>
+                <div class="limit-input-container">
+                    <input type="number"
+                           @bind="totalLimit"
+                           placeholder="Введіть ліміт (напр. 15000)"
+                           class="limit-input" />
+                </div>
+
+                <div class="invite-section">
+                    <label>Запросити учасників</label>
+                    <span class="mail-icon">✉</span>
+                </div>
+
+                <div class="email-input-container">
+                    <input type="email"
+                           @bind="newEmail"
+                           @bind:event="oninput"
+                           @onkeypress="HandleEmailKeyPress"
+                           placeholder="Введіть email учасника" />
+                </div>
+
+                <div class="email-tags">
+                    @foreach (var email in participants.ToList())
+                    {
+                        <div class="email-tag">
+                            <span>@email</span>
+                            <span class="remove-tag" @onclick="() => RemoveParticipant(email)">×</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="copy-link">
+                    <span>🔗 Скопіювати посилання для запрошення</span>
+                </div>
+
+                <button class="btn-create" @onclick="CreateNewGroup">Створити</button>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<GroupDto> OnCreated { get; set; }
+
+    private string groupName = "";
+    private string baseCurrency = "UAH";
+    private decimal totalLimit = 0;
+    private List<string> participants = new();
+    private string newEmail = "";
+
+    private void HandleEmailKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") AddParticipant();
+    }
+
+    private void AddParticipant()
+    {
+        if (!string.IsNullOrWhiteSpace(newEmail) && !participants.Contains(newEmail))
+        {
+            participants.Add(newEmail);
+            newEmail = "";
+        }
+    }
+
+    private void RemoveParticipant(string email) => participants.Remove(email);
+
+    private async Task CreateNewGroup()
+    {
+        if (string.IsNullOrWhiteSpace(groupName)) return;
+
+        if (!string.IsNullOrWhiteSpace(newEmail))
+        {
+            AddParticipant();
+        }
+
+        var groupToCreate = new GroupDto
+            {
+                Name = groupName,
+                BaseCurrency = baseCurrency,
+                TotalLimit = totalLimit
+            };
+
+        var createdGroup = await FinancialService.CreateGroupAsync(groupToCreate);
+
+        if (createdGroup != null && !string.IsNullOrEmpty(createdGroup.Id))
+        {
+            if (participants.Any())
+            {
+                foreach (var email in participants)
+                {
+                    var inviteRequest = new InviteUserRequest
+                        {
+                            GroupId = Guid.Parse(createdGroup.Id),
+                            Email = email
+                        };
+                    await FinancialService.SendInvitationAsync(inviteRequest);
+                }
+            }
+            else
+            {
+                Console.WriteLine("Список учасників порожній.");
+            }
+
+            await OnCreated.InvokeAsync(createdGroup);
+            CloseFields();
+            await OnClose.InvokeAsync();
+        }
+    }
+
+    private void CloseFields()
+    {
+        groupName = "";
+        totalLimit = 0;
+        participants.Clear();
+        newEmail = "";
+    }
+
+    private async Task Close()
+    {
+        CloseFields();
+        await OnClose.InvokeAsync();
+    }
+}

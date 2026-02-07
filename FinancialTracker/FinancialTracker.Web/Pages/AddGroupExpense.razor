@@ -1,0 +1,125 @@
+﻿@page "/add-group-expense/{GroupId:guid}"
+@using FinancialTracker.Web.Models
+@using FinancialTracker.Web.Services
+@inject FinancialService FinancialService
+@inject NavigationManager Nav
+
+<div class="add-tx-wrapper">
+    <header class="tx-header">
+        <button class="cancel-btn" @onclick='() => Nav.NavigateTo($"/group/{GroupId}")'>Скасувати</button>
+        <div class="title-pill">Витрати</div>
+        <div style="width: 80px;"></div> @* Для центрування *@
+    </header>
+
+    <div class="amount-display">
+        <div class="amount-content">
+            <span class="currency-symbol expense-color">@GetCurrencySymbol()</span>
+            <input type="number" class="amount-input" @bind="model.amount" step="0.01" placeholder="0" />
+        </div>
+    </div>
+
+    <div class="selection-section">
+        <span class="label">З якого вашого гаманця списати?</span>
+        <div class="wallets-grid">
+            @foreach (var wallet in wallets)
+            {
+                <div class="wallet-card @(model.walletid == wallet.Id ? "selected" : "")"
+                     @onclick="() => model.walletid = wallet.Id">
+                    <div class="wallet-icon">@(wallet.CurrencyCode == "USD" ? "💵" : wallet.CurrencyCode == "EUR" ? "💶" : "💳")</div>
+                    <span class="wallet-name">@wallet.Name</span>
+                </div>
+            }
+        </div>
+
+        <div class="form-row" style="margin-top: 20px;">
+            <div class="dropdown-container">
+                <span class="label">Категорія витрати</span>
+                <select @bind="model.categoryId" class="custom-select">
+                    <option value="@Guid.Empty">Обрати категорію</option>
+                    @foreach (var cat in categories)
+                    {
+                        <option value="@cat.Id">@cat.Name</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row" style="margin-top: 10px;">
+            <span class="label">Дата</span>
+            <input type="date"
+                   @bind="model.createdAt"
+                   @bind:format="yyyy-MM-dd"
+                   max="@DateTime.Now.ToString("yyyy-MM-dd")"
+                   class="custom-input"
+                   style="text-align: center; font-family: inherit;" />
+        </div>
+
+        <input type="text" placeholder="На що витратили? (коментар)" @bind="model.comment" class="comment-input" style="margin-top: 20px;" />
+    </div>
+
+    <button class="save-btn" @onclick="HandleSave" disabled="@isSaving">
+        @(isSaving ? "Зберігаємо..." : "Додати витрату")
+    </button>
+</div>
+
+@code {
+    [Parameter] public Guid GroupId { get; set; }
+
+    private TransactionCreateDto model = new() { type = 1, createdAt = DateTime.Now };
+    private List<WalletDto> wallets = new();
+    private List<CategoryDto> categories = new();
+    private bool isSaving = false;
+    private GroupDto? currentGroup;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var groups = await FinancialService.GetGroupsAsync();
+        currentGroup = groups.FirstOrDefault(g => g.Id == GroupId.ToString());
+
+        model.groupId = GroupId;
+        model.createdAt = DateTime.Now;
+
+        wallets = await FinancialService.GetWalletsAsync();
+        categories = await FinancialService.GetCategoriesAsync();
+
+        if (wallets.Any())
+            model.walletid = wallets.First().Id;
+    }
+
+    private string GetCurrencySymbol()
+    {
+        return currentGroup?.BaseCurrency?.ToUpper() switch
+        {
+            "USD" => "$",
+            "EUR" => "€",
+            "UAH" => "₴",
+            _ => "₴"
+        };
+    }
+
+    private async Task HandleSave()
+    {
+        if (model.amount <= 0 || model.walletid == Guid.Empty || model.categoryId == Guid.Empty)
+        {
+            return;
+        }
+
+        isSaving = true;
+        try
+        {
+            var result = await FinancialService.CreateTransactionAsync(model);
+            if (result.HasValue && result.Value != Guid.Empty)
+            {
+                Nav.NavigateTo($"/group/{GroupId}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Помилка збереження: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

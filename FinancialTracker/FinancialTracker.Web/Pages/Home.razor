@@ -222,7 +222,7 @@
                                 <div class="group-money-row">
                                     <div class="money-item">
                                         <span class="money-label">Ліміт</span>
-                                        <span class="money-val">@group.TotalLimit.ToString("N0") ₴</span>
+                                        <span class="money-val">@group.TotalLimit?.ToString("N0") ₴</span>
                                     </div>
                                     <div class="money-item text-right">
                                         <span class="money-label">Витрачено</span>
@@ -274,7 +274,10 @@
             <button class="plus-btn" @onclick='() => Nav.NavigateTo("/add-transaction/1")'>+</button>
             <span>Додати</span>
         </div>
-        <div class="nav-item"><span class="nav-icon">👥</span><span>Групи</span></div>
+        <div class="nav-item" @onclick='() => Nav.NavigateTo("/groups")' style="cursor: pointer;">
+            <span class="nav-icon">👥</span>
+            <span>Групи</span>
+        </div>
         <div class="nav-item"><span class="nav-icon">•••</span><span>Більше</span></div>
     </nav>
 </div>
