@@ -1,6 +1,7 @@
 ﻿@using FinancialTracker.Web.Models
 @using FinancialTracker.Web.Services
 @inject FinancialService FinancialService
+@inject NavigationManager Nav
 
 @if (IsVisible && Group != null)
 {
@@ -33,17 +34,33 @@
                            @onkeypress="HandleEmailKeyPress"
                            placeholder="Введіть email учасника" />
                 </div>
-
                 <div class="email-tags">
-                    @if (editedParticipants != null && editedParticipants.Any())
+                    @if (Group?.Members != null)
                     {
-                        @foreach (var email in editedParticipants.ToList())
+                        @for (int i = 0; i < Group.Members.Count; i++)
                         {
-                            <div class="email-tag">
-                                <span>@email</span>
-                                <span class="remove-tag" @onclick="() => RemoveParticipant(email)">×</span>
+                            var member = Group.Members[i];
+                            var isOwner = (i == 0);
+
+                            <div class="email-tag existing-member @(isOwner ? "owner-tag" : "")">
+                                <span class="member-status-icon">@(isOwner ? "👑" : "👤")</span>
+                                <span>@member.UserId.ToString().Substring(0, 8)...</span>
+
+                                @if (!isOwner)
+                                {
+                                    <span class="remove-tag" @onclick="() => KickMember(member.UserId.ToString())">×</span>
+                                }
                             </div>
                         }
+                    }
+
+                    @foreach (var email in editedParticipants)
+                    {
+                        <div class="email-tag new-invite">
+                            <span class="member-status-icon">✉</span>
+                            <span>@email</span>
+                            <span class="remove-tag" @onclick="() => RemoveFromQueue(email)">×</span>
+                        </div>
                     }
                 </div>
 
@@ -51,14 +68,21 @@
                     <span>🔗 Скопіювати посилання для запрошення</span>
                 </div>
 
-                <button class="btn-save" @onclick="SaveGroup">Зберегти</button>
-                <button class="btn-delete" @onclick="DeleteGroup">Видалити</button>
+                <div class="modal-actions">
+                    <button class="btn-save" @onclick="SaveGroup">Зберегти</button>
+                    <button class="btn-delete" @onclick="DeleteGroup">Видалити</button>
+
+                    @if (!string.IsNullOrEmpty(deleteErrorMessage))
+                    {
+                        <div class="delete-error-msg">
+                            @deleteErrorMessage
+                        </div>
+                    }
+                </div>
             </div>
         </div>
     </div>
 }
-
-
 
 @code {
     [Parameter] public bool IsVisible { get; set; }
@@ -66,12 +90,13 @@
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback<GroupDto> OnSave { get; set; }
     [Parameter] public EventCallback<string> OnDelete { get; set; }
-
+    private string? deleteErrorMessage;
     private string editedName = "";
     private string editedCurrency = "UAH";
     private List<string> editedParticipants = new List<string>(); 
     private string newEmail = "";
     private string _lastGroupId = "";
+
 
     protected override void OnParametersSet()
     {
@@ -79,7 +104,7 @@
         {
             editedName = Group.Name ?? "";
             editedCurrency = !string.IsNullOrEmpty(Group.BaseCurrency) ? Group.BaseCurrency : "UAH";
-            editedParticipants = new List<string>(Group.ParticipantNames ?? new List<string>());
+            editedParticipants = new List<string>();
             _lastGroupId = Group.Id;
         }
 
@@ -89,6 +114,25 @@
             newEmail = "";
         }
     }
+
+       private async Task KickMember(string userId)
+    {
+        if (Group == null) return;
+        
+        var success = await FinancialService.KickMemberAsync(Group.Id, userId);
+        if (success)
+        {
+            Group.Members.RemoveAll(m => m.UserId.ToString() == userId);
+            StateHasChanged();
+        }
+    }
+
+    private void RemoveFromQueue(string email)
+    {
+        editedParticipants.Remove(email);
+        StateHasChanged();
+    }
+    
 
     private void HandleEmailKeyPress(KeyboardEventArgs e)
     {
@@ -177,9 +221,20 @@
 
     private async Task DeleteGroup()
     {
-        if (Group != null)
+        if (Group == null) return;
+
+        deleteErrorMessage = null;
+        var result = await FinancialService.DeleteGroupAsync(Group.Id);
+
+        if (result.IsSuccess)
         {
-            await OnDelete.InvokeAsync(Group.Id);
+            Close();
+            Nav.NavigateTo("/groups");
+        }
+        else
+        {
+            deleteErrorMessage = result.ErrorMessage;
+            StateHasChanged();
         }
     }
 

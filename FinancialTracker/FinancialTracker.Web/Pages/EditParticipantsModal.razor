@@ -1,0 +1,123 @@
+﻿@using FinancialTracker.Web.Models
+@using FinancialTracker.Web.Services
+@inject FinancialService FinancialService
+
+@if (IsVisible && Group != null)
+{
+    <div class="edit-group-overlay" @onclick="Close">
+        <div class="edit-group-modal" @onclick:stopPropagation>
+            <div class="modal-header">
+                <h3>Редагувати учасників</h3>
+                <span class="cancel-link" @onclick="Close">Скасувати</span>
+            </div>
+
+            <div class="modal-body">
+                <div class="invite-section">
+                    <label>Запросити учасників</label>
+                    <span class="mail-icon">✉</span>
+                </div>
+
+                <div class="email-input-container">
+                    <input type="email"
+                           @bind="newEmail"
+                           @bind:event="oninput"
+                           @onkeypress="HandleKeyPress"
+                           placeholder="Введіть email та натисніть Enter" />
+                </div>
+
+                <div class="email-tags">
+                    @foreach (var participant in editedParticipants)
+                    {
+                        <div class="email-tag">
+                            <span>@participant</span>
+                            <span class="remove-tag" @onclick="() => RemoveParticipant(participant)">×</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="copy-link" @onclick="CopyInviteLink">
+                    <span class="link-icon">🔗</span>
+                    <span>Скопіювати посилання для запрошення</span>
+                </div>
+
+                <button class="btn-save" @onclick="SaveChanges">
+                    Зберегти зміни
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public GroupDto? Group { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<List<string>> OnSave { get; set; }
+
+    private string newEmail = "";
+    private List<string> editedParticipants = new();
+
+    protected override void OnParametersSet()
+    {
+        if (IsVisible && Group != null)
+        {
+            editedParticipants = Group.Members
+                .Select(m => !string.IsNullOrEmpty(m.UserName) ? m.UserName : m.UserId.ToString())
+                .ToList();
+        }
+    }
+
+    private void HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") AddParticipant();
+    }
+
+    private void AddParticipant()
+    {
+        if (!string.IsNullOrWhiteSpace(newEmail))
+        {
+            var email = newEmail.Trim();
+            if (email.Contains("@") && !editedParticipants.Contains(email))
+            {
+                editedParticipants.Add(email);
+                newEmail = "";
+                StateHasChanged();
+            }
+        }
+    }
+
+    private void RemoveParticipant(string email)
+    {
+        editedParticipants = editedParticipants.Where(e => e != email).ToList();
+    }
+
+    private async Task SaveChanges()
+    {
+        if (!string.IsNullOrWhiteSpace(newEmail)) AddParticipant();
+
+        try
+        {
+            foreach (var email in editedParticipants)
+            {
+                if (email.Contains("@"))
+                {
+                    var request = new InviteUserRequest
+                        {
+                            GroupId = Guid.Parse(Group.Id),
+                            Email = email
+                        };
+                    await FinancialService.SendInvitationAsync(request);
+                }
+            }
+
+            await OnSave.InvokeAsync(editedParticipants);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Помилка: {ex.Message}");
+        }
+    }
+
+    private void Close() => OnClose.InvokeAsync();
+    private void CopyInviteLink() {  }
+}

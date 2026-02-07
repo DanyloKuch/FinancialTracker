@@ -272,8 +272,8 @@
     position: fixed;
     top: 0;
     left: -100%;
-    width: 350px; /* Зробили ширшою (було 330px) */
-    height: 100vh; /* Виправив помилку 500vh на 100vh */
+    width: 350px; 
+    height: 100vh; 
     background: #121212;
     z-index: 9999;
     transition: left 0.3s ease-in-out;
@@ -359,11 +359,11 @@
 }
 
 .member-avatar {
-    width: 44px; /* Трохи збільшив для кращого вигляду */
+    width: 44px; 
     height: 44px;
-    min-width: 44px; /* ГАРАНТІЯ КРУГЛОЇ ФОРМИ */
+    min-width: 44px; 
     min-height: 44px;
-    flex-shrink: 0; /* НЕ ДАЄ СТИСКАТИСЯ В ОВАЛ */
+    flex-shrink: 0; 
     background: linear-gradient(135deg, #D09CFA 0%, #9D75FF 100%);
     border-radius: 50%;
     display: flex;
@@ -401,7 +401,7 @@
 .member-info {
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* Щоб довгий email не ламав верстку */
+    overflow: hidden; 
 }
 
 .member-email {
@@ -575,8 +575,34 @@ body {
     .icon-btn:active, .edit-icon:active {
         transform: scale(0.9);
     }
-@media screen and (max-width: 768px) {
-    .side-panel {
-        width: 300px; /* Ширина для мобільних пристроїв */
+
+.group-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.leave-group-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 68, 68, 0.1);
+    border: 1px solid rgba(255, 68, 68, 0.2);
+    color: #ff6b6b;
+    padding: 5px 12px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+    .leave-group-pill:hover {
+        background: #ff4444;
+        color: white;
+        border-color: transparent;
     }
+
+.modal-overlay {
+    backdrop-filter: blur(5px);
 }

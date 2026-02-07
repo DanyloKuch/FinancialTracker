@@ -2,14 +2,14 @@
 @using FinancialTracker.Web.Models
 @using FinancialTracker.Web.Services
 @inject FinancialService FinancialService
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject NavigationManager Nav
 
 <div class="dashboard-wrapper">
     <div class="side-panel @(isSidebarOpen ? "open" : "")">
         <div class="panel-content">
             <div class="panel-header">
-                <button class="icon-btn edit-members-btn" @onclick="() => OpenEditGroup(currentGroup)">⚙</button>
-
+                <button class="icon-btn edit-members-btn" @onclick="() => showSettings = true">⚙</button>
                 <h3>Учасники групи</h3>
 
                 <button class="close-btn" @onclick="ToggleSidebar">〈</button>
@@ -27,7 +27,20 @@
                     }
                 }
             </div>
-
+           
+            @if (showLeaveConfirm)
+            {
+                <div class="modal-overlay" style="position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); z-index: 20000; display: flex; align-items: center; justify-content: center;">
+                    <div class="confirm-modal" style="background: #1a1a1a; padding: 25px; border-radius: 15px; width: 90%; max-width: 350px; text-align: center; border: 1px solid #333;">
+                        <h3 style="color: white; margin-bottom: 15px;">Вийти з групи?</h3>
+                        <p style="color: #888; margin-bottom: 25px;">Ви втратите доступ до спільних витрат та балансу цієї групи.</p>
+                        <div style="display: flex; gap: 10px;">
+                            <button @onclick="() => showLeaveConfirm = false" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #444; background: transparent; color: white;">Скасувати</button>
+                            <button @onclick="ConfirmLeaveGroup" style="flex: 1; padding: 10px; border-radius: 8px; border: none; background: #ff4444; color: white; font-weight: bold;">Вийти</button>
+                        </div>
+                    </div>
+                </div>
+            }
             <div class="add-member-footer">
                 <button class="add-member-btn"
                         @onclick="ShowAddMemberModal"
@@ -52,6 +65,18 @@
 
         <div class="group-actions">
             <span class="edit-icon" @onclick="() => OpenEditGroup(currentGroup)">✎</span>
+
+            @if (currentGroup != null && currentGroup.OwnerId != currentUserId)
+            {
+                <button class="leave-group-pill" @onclick="() => showLeaveConfirm = true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    <span>Вийти</span>
+                </button>
+            }
         </div>
     </header>
 
@@ -147,22 +172,34 @@
                      GroupId="@GroupId.ToString()"
                      OnClose="CloseAddMemberModal" />
 
-@code {
-    [Parameter] public Guid GroupId { get; set; }
+<EditParticipantsModal IsVisible="showSettings"
+                       Group="currentGroup"
+                       OnClose="() => showSettings = false"
+                       OnSave="HandleSaveParticipants" />
 
+@code {
+
+    [Parameter] public Guid GroupId { get; set; }
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; }
+    private bool showLeaveConfirm = false;
+    private string? currentUserId;
+    private bool showSettings = false;
     private GroupDto? currentGroup;
     private List<TransactionDto> groupTransactions = new();
     private bool showEditModal = false;
     private GroupDto? selectedGroup = null;
     private bool showAddMemberModal = false;
     private bool isSidebarOpen = false;
+    private bool isOwner = false;
     private decimal initialBank = 0;
     private decimal totalSpent = 0;
     private decimal currentBalance = 0;
     private double progressPercentage = 0;
+    private string? deleteErrorMessage;
 
     protected override async Task OnInitializedAsync()
     {
+        currentUserId = await LocalStorage.GetItemAsync<string>("userId");
         await LoadData();
     }
 
@@ -173,6 +210,11 @@
 
         if (currentGroup != null)
         {
+            isOwner = string.Equals(currentGroup.OwnerId?.ToString(), currentUserId, StringComparison.OrdinalIgnoreCase);
+            Console.WriteLine($"DEBUG: My ID: {currentUserId}");
+            Console.WriteLine($"DEBUG: Owner ID: {currentGroup.OwnerId}");
+            Console.WriteLine($"DEBUG: Is Owner: {isOwner}");
+
             initialBank = currentGroup.TotalLimit ?? 0;
             var result = await FinancialService.GetTransactionsAsync(page: 1, pageSize: 100);
 
@@ -184,11 +226,9 @@
             totalSpent = groupTransactions.Where(t => t.Type == 1).Sum(t => t.Amount);
             currentBalance = initialBank - totalSpent;
 
-            
             if (initialBank > 0)
             {
                 progressPercentage = (double)((totalSpent / initialBank) * 100);
-
                 if (progressPercentage > 100) progressPercentage = 100;
                 if (progressPercentage < 0) progressPercentage = 0;
             }
@@ -196,6 +236,35 @@
             {
                 progressPercentage = 0;
             }
+        }
+    }
+
+    private async Task HandleSaveParticipants(List<string> updatedIds)
+    {
+        if (currentGroup == null) return;
+        var membersToKick = currentGroup.Members
+            .Where(m => !updatedIds.Contains(m.UserId.ToString()))
+            .ToList();
+
+        bool allSuccess = true;
+        foreach (var member in membersToKick)
+        {
+            var success = await FinancialService.KickMemberAsync(currentGroup.Id, member.UserId.ToString());
+            if (!success)
+            {
+                allSuccess = false;
+                Console.WriteLine($"Не вдалося видалити учасника: {member.UserId}");
+            }
+        }
+        if (allSuccess)
+        {
+            showSettings = false;
+            await LoadData(); 
+        }
+        else
+        {
+            await LoadData();
+            StateHasChanged();
         }
     }
 
@@ -239,16 +308,23 @@
 
     private async Task HandleDeleteGroup(string groupId)
     {
-        if (await FinancialService.DeleteGroupAsync(groupId))
+        deleteErrorMessage = null; 
+        var (success, message) = await FinancialService.DeleteGroupAsync(groupId);
+
+        if (success)
         {
             CloseEditModal();
             Nav.NavigateTo("/groups");
+        }
+        else
+        {
+            deleteErrorMessage = message;
+            StateHasChanged();
         }
     }
 
     private void OpenAddExpense()
     {
-        // Тепер ведемо на спеціальну сторінку групових витрат
         Nav.NavigateTo($"/add-group-expense/{GroupId}");
     }
 
@@ -262,4 +338,24 @@
             _ => currencyCode ?? "₴"
         };
     }
+
+    private async Task ConfirmLeaveGroup()
+    {
+        if (currentGroup == null) return;
+
+        var success = await FinancialService.LeaveGroupAsync(currentGroup.Id);
+
+        if (success)
+        {
+            showLeaveConfirm = false;
+            Nav.NavigateTo("/groups"); 
+        }
+        else
+        {
+            Console.WriteLine("Не вдалося вийти з групи");
+            showLeaveConfirm = false;
+        }
+    }
+
 }
+

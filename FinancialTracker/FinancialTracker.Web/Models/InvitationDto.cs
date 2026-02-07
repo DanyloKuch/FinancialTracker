@@ -4,7 +4,7 @@
     {
         public Guid Id { get; set; }
         public Guid GroupId { get; set; }
-        public string InviterId { get; set; } = ""; // Хто запросив (email)
+        public string InviterId { get; set; } = ""; 
         public string Status { get; set; } = "Pending";
     }
 }

@@ -26,15 +26,12 @@
                 </div>
 
                 <div class="email-tags">
-                    @if (pendingEmails.Any())
+                    @foreach (var email in pendingEmails)
                     {
-                        @foreach (var email in pendingEmails)
-                        {
-                            <div class="email-tag">
-                                <span>@email</span>
-                                <span class="remove-tag" @onclick="() => RemoveEmail(email)">×</span>
-                            </div>
-                        }
+                        <div class="email-tag">
+                            <span>@email</span>
+                            <span class="remove-tag" @onclick="() => RemoveEmail(email)">×</span>
+                        </div>
                     }
                 </div>
 
@@ -43,16 +40,15 @@
                     <span>Скопіювати посилання для запрошення</span>
                 </div>
 
-                <button class="btn-save" @onclick="SendAllInvites" disabled="@(!pendingEmails.Any())">
-                    Надіслати запити (@pendingEmails.Count)
+                <button class="btn-save"
+                        @onclick="SendAllInvites"
+                        disabled="@(string.IsNullOrWhiteSpace(newEmail) && !pendingEmails.Any())">
+                    Надіслати запити @(pendingEmails.Count > 0 ? $"({pendingEmails.Count})" : "")
                 </button>
             </div>
         </div>
     </div>
 }
-
-
-
 
 @code {
     [Parameter] public bool IsVisible { get; set; }
@@ -72,44 +68,45 @@
 
     private void AddEmailToPending()
     {
-        if (!string.IsNullOrWhiteSpace(newEmail) && !pendingEmails.Contains(newEmail))
+        if (!string.IsNullOrWhiteSpace(newEmail))
         {
-            if (newEmail.Contains("@")) 
+            var email = newEmail.Trim();
+            if (email.Contains("@") && !pendingEmails.Contains(email))
             {
-                pendingEmails.Add(newEmail);
+                pendingEmails.Add(email);
                 newEmail = "";
                 StateHasChanged();
             }
         }
     }
 
-    private void RemoveEmail(string email)
-    {
-        pendingEmails.Remove(email);
-    }
+    private void RemoveEmail(string email) => pendingEmails.Remove(email);
 
     private async Task SendAllInvites()
     {
+        if (!string.IsNullOrWhiteSpace(newEmail)) AddEmailToPending();
+
         if (!pendingEmails.Any()) return;
 
         try
         {
-            foreach (var email in pendingEmails)
+            foreach (var email in pendingEmails.ToList())
             {
                 var request = new InviteUserRequest
                     {
                         GroupId = Guid.Parse(GroupId),
-                        Email = email
+                        Email = email 
                     };
+
                 await FinancialService.SendInvitationAsync(request);
+                pendingEmails.Remove(email); 
             }
 
-            pendingEmails.Clear();
             await OnClose.InvokeAsync();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error sending invites: {ex.Message}");
+            Console.WriteLine($"DEBUG ERROR: Не вдалося надіслати запити: {ex.Message}");
         }
     }
 
@@ -120,8 +117,5 @@
         OnClose.InvokeAsync();
     }
 
-    private void CopyInviteLink()
-    {
-        Console.WriteLine("Link copied");
-    }
+    private void CopyInviteLink() {  }
 }

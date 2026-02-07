@@ -252,3 +252,29 @@
     padding: 14px;
     font-size: 16px;
 }
+.delete-error-msg {
+    display: block;
+    width: 100%;
+    color: #ff453a;
+    background: rgba(255, 69, 58, 0.1);
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid #ff453a;
+    text-align: center;
+    font-size: 0.9rem;
+    margin-top: 5px; 
+    box-sizing: border-box;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

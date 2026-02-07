@@ -3,6 +3,7 @@
 @using FinancialTracker.Web.Services
 @inject FinancialService FinancialService
 @inject NavigationManager Nav
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 
 <div class="groups-page">
     <header class="groups-header">
@@ -53,8 +54,10 @@
                         </div>
 
                         <div class="group-actions">
-                            <span class="edit-icon" @onclick="() => OpenEditGroup(group)" @onclick:stopPropagation>✎</span>
-
+                            @if (!string.IsNullOrEmpty(currentUserId) && group.OwnerId == currentUserId)
+                            {
+                                <span class="edit-icon" @onclick="() => OpenEditGroup(group)" @onclick:stopPropagation>✎</span>
+                            }
                             <div class="avatar-stack">
                                 @if (group.ParticipantNames != null && group.ParticipantNames.Any())
                                 {
@@ -87,14 +90,31 @@
 
 
 @code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; }
+    private string? currentUserId;
     private List<GroupDto> groups = new();
     private bool showEditModal = false;
     private bool showCreateModal = false;
     private GroupDto? selectedGroup = null;
     private bool showInviteModal = false;
     private int unreadCount = 0;
+    private string? deleteErrorMessage;
 
-    protected override async Task OnInitializedAsync() => await LoadGroups();
+    protected override async Task OnInitializedAsync()
+    {
+        currentUserId = await LocalStorage.GetItemAsync<string>("userId");
+
+        if (string.IsNullOrEmpty(currentUserId))
+        {
+            var auth = await AuthState;
+            var user = auth.User;
+            currentUserId = user.FindFirst("sub")?.Value
+                            ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        }
+
+        Console.WriteLine($"[DEBUG] Мій ID (currentUserId): {currentUserId}");
+        await LoadGroups();
+    }
 
     private void OpenInvites()
     {
@@ -157,10 +177,18 @@
 
     private async Task HandleDeleteGroup(string groupId)
     {
-        if (await FinancialService.DeleteGroupAsync(groupId))
+        deleteErrorMessage = null;
+        var (success, message) = await FinancialService.DeleteGroupAsync(groupId);
+
+        if (success)
         {
             await LoadGroups();
             CloseEditModal();
+        }
+        else
+        {
+            deleteErrorMessage = message;
+            StateHasChanged();
         }
     }
     private string GetParticipantLabel(int count)

@@ -171,17 +171,28 @@ namespace FinancialTracker.Web.Services
             return response.IsSuccessStatusCode;
         }
 
-        public async Task<bool> DeleteGroupAsync(string groupId)
+        public async Task<(bool IsSuccess, string? ErrorMessage)> DeleteGroupAsync(string groupId)
         {
             await SetTokenAsync();
             try
             {
                 var response = await _http.DeleteAsync($"api/v1/groups/{groupId}");
-                return response.IsSuccessStatusCode;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return (true, null);
+                }
+                if (response.StatusCode == System.Net.HttpStatusCode.Forbidden ||
+                    response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                {
+                    return (false, "Ви не можете видалити цю групу, бо ви не є власником");
+                }
+
+                return (false, "Сталася помилка при видаленні");
             }
             catch
             {
-                return false;
+                return (false, "Помилка з'єднання з сервером");
             }
         }
 
@@ -264,17 +275,26 @@ namespace FinancialTracker.Web.Services
         public async Task SendInvitationAsync(InviteUserRequest request)
         {
             await SetTokenAsync();
-
             var response = await _http.PostAsJsonAsync("api/v1/invitations", request);
 
             if (!response.IsSuccessStatusCode)
             {
                 var error = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Сервер повернув помилку: {response.StatusCode} - {error}");
             }
-            else
+        }
+
+        public async Task<bool> AddMemberByEmailAsync(string groupId, string email)
+        {
+            await SetTokenAsync();
+            var request = new InviteUserRequest
             {
-                Console.WriteLine("SUCCESS: Invitation sent!");
-            }
+                GroupId = Guid.Parse(groupId),
+                Email = email 
+            };
+
+            var response = await _http.PostAsJsonAsync("api/v1/invitations", request);
+            return response.IsSuccessStatusCode;
         }
         public async Task<List<InvitationDto>> GetMyInvitationsAsync()
         {
@@ -304,6 +324,19 @@ namespace FinancialTracker.Web.Services
 
             return response.IsSuccessStatusCode;
         }
+        public async Task<bool> KickMemberAsync(string groupId, string memberId)
+        {
+            await SetTokenAsync(); 
+            var response = await _http.DeleteAsync($"api/v1/Groups/{groupId}/kikcmembers/{memberId}");
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> LeaveGroupAsync(string groupId)
+        {
+            var response = await _http.PostAsync($"/api/v1/Groups/{groupId}/leave", null);
+            return response.IsSuccessStatusCode;
+        }
 
     }
+
 }
