@@ -80,5 +80,13 @@ namespace FinancialTracker.Infrastructure.Repositories
                 await _context.SaveChangesAsync();
             }
         }
+
+        public async Task<bool> HasPendingInvitationAsync(Guid groupId, string email)
+        {
+            return await _context.Invitations
+                .AnyAsync(i => i.GroupId == groupId
+                               && i.InviteeEmail == email
+                               && i.Status == InvitationStatus.Pending);
+        }
     }
 }

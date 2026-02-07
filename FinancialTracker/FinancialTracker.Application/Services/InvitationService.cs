@@ -29,25 +29,36 @@ namespace FinancialTracker.Application.Services
         public async Task<Result<Guid>> InviteUserAsync(InviteUserRequest request)
         {
             var groupResult = await _groupRepository.GetByIdAsync(request.GroupId, _currentUserService.UserId);
-
+            
             if (!groupResult.IsSuccess)
-                return Result<Guid>.Failure("Group not found or you don't have access.");
+                return Result<Guid>.Failure("Group not found or access denied.");
 
-            var group = groupResult.Value!;
+            var group = groupResult.Value;
 
-            var inviteeId = await _userRepository.GetUserIdByEmailAsync(request.Email);
-
-            if (inviteeId.HasValue)
+            var isMember = await _groupRepository.IsMemberAsync(group.Id, request.Email);
+            if (isMember)
             {
-                if (group.Members.Any(m => m.UserId == inviteeId.Value))
-                    return Result<Guid>.Failure("User is already a member.");
+                return Result<Guid>.Failure("User is already a member of this group.");
             }
 
-            var invitationResult = Invitation.Create(request.GroupId, _currentUserService.UserId, request.Email);
-            if (!invitationResult.IsSuccess) return Result<Guid>.Failure(invitationResult.Error!);
+            var hasPending = await _invitationRepository.HasPendingInvitationAsync(group.Id, request.Email);
+            if (hasPending)
+            {
+                return Result<Guid>.Failure("This user already has a pending invitation to this group.");
+            }
 
-            await _invitationRepository.AddAsync(invitationResult.Value!);
-            return Result<Guid>.Success(invitationResult.Value!.Id);
+            var invitationResult = Invitation.Create(
+                group.Id,
+                _currentUserService.UserId,
+                request.Email
+            );
+
+            if (!invitationResult.IsSuccess)
+                return Result<Guid>.Failure(invitationResult.Error!);
+
+            await _invitationRepository.AddAsync(invitationResult.Value);
+
+            return Result<Guid>.Success(invitationResult.Value.Id);
         }
 
         public async Task<Result> RespondToInvitationAsync(Guid invitationId, bool isAccepted)
