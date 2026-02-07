@@ -14,8 +14,26 @@
             <div class="user-avatar">👤</div>
         </div>
         <div class="currency-rates">
-            <div class="rate-item">🇺🇸 USD 42.95/43.45</div>
-            <div class="rate-item">🇪🇺 EUR 50.35/50.98</div>
+            @if (exchangeRates != null && exchangeRates.Any())
+            {
+                @foreach (var rate in exchangeRates)
+                {
+                    <div class="rate-card">
+                        <span class="rate-flag">@(rate.Code == "USD" ? "🇺🇸" : rate.Code == "EUR" ? "🇪🇺" : "🏳️")</span>
+                        <div class="rate-info">
+                            <span class="rate-code">@rate.Code</span>
+                            <span class="rate-value">@rate.Rate.ToString("F2")</span>
+                        </div>
+                        <div class="rate-trend">
+                            <span class="rate-update">@rate.UpdatedAt.ToString("HH:mm")</span>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="rate-loading">Завантаження курсів...</div>
+            }
         </div>
         <div class="wallet-container">
             <div class="wallet-select" @onclick="ToggleDropdown">
@@ -171,30 +189,70 @@
             </div>
 
             <div class="grid-col">
-                @if (firstGroup != null)
-                {
-                    <div class="group-banner">
-                        <div class="group-top">
-                            <span class="group-title">Бюджет</span>
-                            <div class="group-avatars"><span class="av">User</span></div>
-                        </div>
-                        <div class="group-money">
-                            <h1>@(firstGroup.TotalLimit?.ToString("N0") ?? "0") ₴</h1>
-                            <span>з ліміту групи</span>
-                        </div>
-                        <div class="progress-track group-track">
-                            <div class="progress-fill group-fill" style="width: 62%"></div>
-                        </div>
-                        <div class="limit-stats">Витрачено: 62%</div>
-                        <div class="group-info-row">
-                            <div class="group-icon">O</div>
-                            <div class="group-text">
-                                <b>@firstGroup.Name</b><br />@firstGroup.CreatedAt.ToString("dd MMM yyyy")
+                <div class="header-inline">
+                    <h3>Групові бюджети</h3>
+                    <span class="group-count">(@groups.Count)</span>
+                </div>
+
+                <div class="groups-list">
+                    @if (groups != null && groups.Any())
+                    {
+                        @foreach (var group in groups)
+                        {
+                            var percentage = group.TotalLimit > 0
+                            ? (double)(group.SpentAmount / group.TotalLimit * 100)
+                            : 0;
+                            var displayPercent = percentage > 100 ? 100 : percentage;
+                            string barColor = percentage >= 100 ? "#ff4d4d" : percentage > 80 ? "#ff944d" : "#4ade80";
+
+                            <div class="group-banner-mini">
+                                <div class="group-top">
+                                    <div class="group-info-main">
+                                        <span class="group-title">@group.Name</span>
+                                        <span class="group-date">з @group.CreatedAt.ToString("dd.MM.yy")</span>
+                                    </div>
+                                    <div class="group-avatars">
+                                        <div class="av-stack">
+                                            <span class="av">U</span>
+                                            <span class="av plus">+</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="group-money-row">
+                                    <div class="money-item">
+                                        <span class="money-label">Ліміт</span>
+                                        <span class="money-val">@group.TotalLimit.ToString("N0") ₴</span>
+                                    </div>
+                                    <div class="money-item text-right">
+                                        <span class="money-label">Витрачено</span>
+                                        <span class="money-val" style="color: @(percentage >= 100 ? "#ff4d4d" : "#fff")">
+                                            @group.SpentAmount.ToString("N0") ₴
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="progress-container">
+                                    <div class="progress-track-bg">
+                                        <div class="progress-fill-active"
+                                             style="width: @displayPercent.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)%; background: @barColor">
+                                        </div>
+                                    </div>
+                                    <div class="progress-label">@percentage.ToString("F1")%</div>
+                                </div>
+
+                                <button class="group-mini-btn" @onclick='() => Nav.NavigateTo($"/group/{group.Id}")'>Деталі →</button>
                             </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="empty-groups">
+                            <p>У вас поки немає груп</p>
+                            <button class="btn-create-group">+ Створити групу</button>
                         </div>
-                        <button class="group-add-btn">+ Додати</button>
-                    </div>
-                }
+                    }
+                </div>
             </div>
         </div>
         <CreateWalletModal IsVisible="showCreateModal"
@@ -225,7 +283,6 @@
 </div>
 
 
-
 @code {
     private decimal totalWalletBalance = 0;
     private decimal incomeSum = 0;
@@ -233,15 +290,84 @@
 
     private List<WalletDto> wallets = new();
     private WalletDto? selectedWallet;
-    private bool isDropdownOpen = false;
     private WalletDto totalWallet = new WalletDto { Id = Guid.Empty, Name = "Основний" };
 
     private List<CategoryDto> categories = new();
-    private List<TransactionDto> allTransactions = new();
     private List<TransactionDto> recentTransactions = new();
-    private int filteredTransactionsCount = 0;
     private List<GroupDto> groups = new();
+    private List<ExchangeRateDto> exchangeRates = new();
     private GroupDto? firstGroup;
+    private int filteredTransactionsCount = 0;
+
+    private bool isDropdownOpen = false;
+    private bool showCreateModal = false;
+    private bool showEditModal = false;
+    private WalletDto selectedWalletForEdit = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardData();
+    }
+
+    private async Task LoadDashboardData()
+    {
+        var summaryData = await FinancialService.GetDashboardSummaryAsync();
+
+        if (summaryData != null)
+        {
+            wallets = summaryData.Wallets;
+            categories = summaryData.Categories;
+            groups = summaryData.Groups;
+            recentTransactions = summaryData.RecentTransactions;
+            exchangeRates = summaryData.ExchangeRates;
+            firstGroup = groups.FirstOrDefault();
+
+            if (selectedWallet == null) selectedWallet = totalWallet;
+
+            UpdateDisplayValues(summaryData);
+        }
+    }
+
+    private void UpdateDisplayValues(DashboardSummaryDto summary)
+    {
+        if (selectedWallet?.Id == Guid.Empty)
+        {
+            totalWalletBalance = summary.TotalBalance;
+            incomeSum = summary.TotalIncome;
+            expenseSum = summary.TotalExpense;
+            recentTransactions = summary.RecentTransactions;
+            filteredTransactionsCount = summary.RecentTransactions.Count;
+        }
+        else
+        {
+            var wallet = wallets.FirstOrDefault(w => w.Id == selectedWallet.Id);
+            if (wallet != null)
+            {
+                totalWalletBalance = wallet.Balance;
+                incomeSum = wallet.TotalIncome;
+                expenseSum = wallet.TotalExpense;
+                recentTransactions = summary.RecentTransactions
+                    .Where(t => t.WalletId == wallet.Id || t.TargetWalletId == wallet.Id)
+                    .ToList();
+                filteredTransactionsCount = recentTransactions.Count;
+            }
+        }
+        StateHasChanged();
+    }
+
+
+    private void ToggleDropdown()
+    {
+        showCreateModal = false;
+        isDropdownOpen = !isDropdownOpen;
+    }
+
+    private async Task SelectWallet(WalletDto wallet)
+    {
+        selectedWallet = wallet;
+        isDropdownOpen = false;
+        await LoadDashboardData();
+    }
 
     private string GetCurrencySymbol()
     {
@@ -256,104 +382,11 @@
         };
     }
 
-    protected override async Task OnInitializedAsync()
-    {
-        var fetchedWallets = await FinancialService.GetWalletsAsync();
-        wallets = fetchedWallets ?? new List<WalletDto>();
-        selectedWallet = totalWallet;
-
-        var pagedResult = await FinancialService.GetTransactionsAsync(page: 1, pageSize: 1000);
-        allTransactions = pagedResult.Items;
-
-        categories = await FinancialService.GetCategoriesAsync();
-        if (categories != null && allTransactions != null)
-        {
-            foreach (var cat in categories)
-            {
-                cat.SpentAmount = allTransactions
-                    .Where(t => t.Type == 1 && t.CategoryId == cat.Id)
-                    .Sum(t => t.Amount);
-            }
-        }
-
-        groups = await FinancialService.GetGroupsAsync();
-        firstGroup = groups.FirstOrDefault();
-        UpdateDisplayBalance();
-    }
-
-    private void ToggleDropdown()
-    {
-        showCreateModal = false;
-        isDropdownOpen = !isDropdownOpen;
-    }
-
-    private void SelectWallet(WalletDto wallet)
-    {
-        selectedWallet = wallet;
-        UpdateDisplayBalance();
-        isDropdownOpen = false;
-    }
-
-    private void UpdateDisplayBalance()
-    {
-        if (selectedWallet?.Id == Guid.Empty)
-        {
-            totalWalletBalance = wallets.Sum(w => w.Balance);
-            incomeSum = allTransactions.Where(t => t.Type == 0).Sum(t => t.Amount);
-            expenseSum = allTransactions.Where(t => t.Type == 1).Sum(t => t.Amount);
-            recentTransactions = allTransactions.OrderByDescending(t => t.CreatedAt).Take(10).ToList();
-            filteredTransactionsCount = allTransactions.Count;
-        }
-        else
-        {
-            totalWalletBalance = selectedWallet?.Balance ?? 0;
-
-            var walletTransactions = allTransactions.Where(t => t.WalletId == selectedWallet.Id).ToList();
-
-            incomeSum = walletTransactions.Where(t => t.Type == 0).Sum(t => t.Amount);
-            expenseSum = walletTransactions.Where(t => t.Type == 1).Sum(t => t.Amount);
-            recentTransactions = walletTransactions.OrderByDescending(t => t.CreatedAt).Take(10).ToList();
-            filteredTransactionsCount = walletTransactions.Count;
-        }
-
-        if (categories != null)
-        {
-            foreach (var cat in categories)
-            {
-                cat.SpentAmount = allTransactions
-                    .Where(t => t.Type == 1 && t.CategoryId == cat.Id)
-                    .Sum(t => t.Amount);
-            }
-        }
-    }
-
-    private bool showCreateModal = false;
-
     private void OpenCreateModal()
     {
         isDropdownOpen = false;
         showCreateModal = true;
-        StateHasChanged();
     }
-
-
-    private async Task HandleCreateWallet(WalletCreateRequest request)
-    {
-        var result = await FinancialService.CreateWalletAsync(request);
-
-        if (result != null)
-        {
-            var updatedWallets = await FinancialService.GetWalletsAsync();
-            wallets = updatedWallets.ToList();
-            showCreateModal = false;
-            isDropdownOpen = false;
-            UpdateDisplayBalance();
-            await InvokeAsync(StateHasChanged);
-        }
-    }
-
-    private bool showEditModal = false;
-    private WalletDto selectedWalletForEdit = new();
 
     private void OpenEditModal(WalletDto wallet)
     {
@@ -369,22 +402,24 @@
         showEditModal = true;
     }
 
+
+    private async Task HandleCreateWallet(WalletCreateRequest request)
+    {
+        var result = await FinancialService.CreateWalletAsync(request);
+        if (result != null)
+        {
+            showCreateModal = false;
+            await LoadDashboardData();
+        }
+    }
+
     private async Task HandleUpdateWallet(WalletDto updatedWallet)
     {
         var success = await FinancialService.UpdateWalletAsync(updatedWallet);
-
         if (success)
         {
-            var freshWallets = await FinancialService.GetWalletsAsync();
-            wallets = freshWallets.ToList();
-            if (selectedWallet?.Id == updatedWallet.Id)
-            {
-                selectedWallet = wallets.FirstOrDefault(w => w.Id == updatedWallet.Id);
-            }
-
             showEditModal = false;
-            UpdateDisplayBalance();
-            StateHasChanged();
+            await LoadDashboardData();
         }
     }
 
@@ -393,9 +428,9 @@
         var confirmed = await FinancialService.DeleteWalletAsync(walletId);
         if (confirmed)
         {
-            wallets = await FinancialService.GetWalletsAsync();
             showEditModal = false;
-            StateHasChanged();
+            if (selectedWallet?.Id == walletId) selectedWallet = totalWallet;
+            await LoadDashboardData();
         }
     }
 }

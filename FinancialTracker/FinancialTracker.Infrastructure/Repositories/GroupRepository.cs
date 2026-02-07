@@ -165,5 +165,16 @@ namespace FinancialTracker.Infrastructure.Repositories
                 ? Result.Success()
                 : Result.Failure("User id not in this group");
         }
+
+        public async Task<bool> IsMemberAsync(Guid groupId, string userEmail)
+        {
+            return await _context.GroupMembers
+                .AsNoTracking()
+                .Join(_context.Users,
+                      member => member.UserId,
+                      user => user.Id,
+                      (member, user) => new { member, user })
+                .AnyAsync(x => x.member.GroupId == groupId && x.user.Email == userEmail);
+        }
     }
 }

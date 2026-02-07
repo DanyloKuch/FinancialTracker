@@ -272,6 +272,22 @@ namespace FinancialTracker.Web.Services
                 return false;
             }
         }
+
+
+        public async Task<DashboardSummaryDto?> GetDashboardSummaryAsync()
+        {
+            await SetTokenAsync();
+            try
+            {
+                var response = await _http.GetFromJsonAsync<DashboardSummaryDto>("api/v1/financial/dashboard-summary");
+                return response;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching dashboard summary: {ex.Message}");
+                return null;
+            }
+        }
         public async Task SendInvitationAsync(InviteUserRequest request)
         {
             await SetTokenAsync();

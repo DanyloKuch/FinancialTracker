@@ -8,6 +8,7 @@ namespace FinancialTracker.Web.Models
         public string Name { get; set; }
         public decimal? TotalLimit { get; set; }
         public DateTime CreatedAt { get; set; }
+        public decimal SpentAmount { get; set; }
         [JsonPropertyName("ownerId")]
         public string OwnerId { get; set; }
         public string? BaseCurrency { get; set; }

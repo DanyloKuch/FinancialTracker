@@ -10,5 +10,6 @@ namespace FinancialTracker.Domain.Interfaces
         Task<List<Invitation>> GetReceivedByEmailAsync(string email);
         Task UpdateAsync(Invitation invitation);
         Task DeleteAsync(Invitation invitation);
+        Task<bool> HasPendingInvitationAsync(Guid groupId, string email);
     }
 }
