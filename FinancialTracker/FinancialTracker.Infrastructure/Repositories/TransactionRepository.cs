@@ -225,5 +225,30 @@ namespace FinancialTracker.Infrastructure.Repositories
                 .Select(g => new { GroupId = g.Key, Spent = g.Sum(t => t.Amount) })
                 .ToDictionaryAsync(k => k.GroupId, v => v.Spent);
         }
+
+        public async Task<List<Transaction>> GetByWalletIdAsync(Guid walletId, int count)
+        {
+            var entities = await _context.Transactions
+                .AsNoTracking()
+                .Where(t => t.WalletId == walletId)
+                .OrderByDescending(t => t.CreatedAt)
+                .Take(count)
+                .ToListAsync();
+
+            return entities.Select(e => Transaction.Load(
+                e.Id,
+                e.WalletId,
+                e.TargetWalletId,
+                e.UserId,
+                e.CategoryId,
+                e.GroupId,
+                e.Amount,
+                e.Type,
+                e.ExchangeRate,
+                e.Commission,
+                e.Comment,
+                e.CreatedAt
+            )).ToList();
+        }
     }
 }
