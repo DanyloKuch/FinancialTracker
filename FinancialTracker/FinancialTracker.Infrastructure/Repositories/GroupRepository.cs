@@ -1,5 +1,4 @@
-﻿using FinancialTracker.Domain.Enums;
-using FinancialTracker.Domain.Interfaces;
+﻿using FinancialTracker.Domain.Interfaces;
 using FinancialTracker.Domain.Models;
 using FinancialTracker.Domain.Shared;
 using FinancialTracker.Infrastructure.Entities;
@@ -15,7 +14,6 @@ namespace FinancialTracker.Infrastructure.Repositories
         {
             _context = context;
         }
-
         
         public async Task<Result<Guid>> CreateAsync(Group group, GroupMember initialMember)
         {
@@ -79,7 +77,7 @@ namespace FinancialTracker.Infrastructure.Repositories
         {
             var entity = await _context.Groups.FindAsync(groupId);
             if (entity == null) return Result.Failure("Group not found");
-
+            
             _context.Groups.Remove(entity);
             await _context.SaveChangesAsync();
             return Result.Success();
