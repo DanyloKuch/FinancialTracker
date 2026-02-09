@@ -18,5 +18,6 @@ namespace FinancialTracker.Domain.Interfaces
         Task<Dictionary<Guid, (decimal Income, decimal Expense)>> GetWalletStatsAsync(Guid userId);
         Task<Dictionary<Guid, decimal>> GetCategorySpendingAsync(Guid userId);
         Task<Dictionary<Guid, decimal>> GetGroupSpendingAsync(Guid userId);
+        Task<List<Transaction>> GetByWalletIdAsync(Guid walletId, int count);
     }
 }   

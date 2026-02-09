@@ -72,6 +72,36 @@ namespace FinancialTracker.Domain.Models
             return Result<Transaction>.Success(transaction);
         }
 
+        public static Transaction Load(
+            Guid id,
+            Guid walletid,
+            Guid? targetWalletId,
+            Guid userId,
+            Guid categoryId,
+            Guid? groupId,
+            decimal amount,
+            TransactionType type,
+            decimal? exchangeRate,
+            decimal? commission,
+            string? comment,
+            DateTime createdAt)
+        {
+
+            return new Transaction(
+                id,
+                walletid,
+                targetWalletId,
+                userId,
+                categoryId,
+                groupId,
+                amount,
+                type,
+                exchangeRate,
+                commission,
+                comment,
+                createdAt);
+        }
+
         public void Update(Guid walletId ,decimal amount, Guid categoryId, string? comment, Guid? targetWalletId, decimal? exchangeRate, decimal? commission, DateTime createdAt)
         {
             if (amount <= 0) throw new ArgumentException("Amount must be greater than zero.");
