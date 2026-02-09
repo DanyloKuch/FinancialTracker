@@ -295,8 +295,28 @@ namespace FinancialTracker.Web.Services
 
             if (!response.IsSuccessStatusCode)
             {
-                var error = await response.Content.ReadAsStringAsync();
-                throw new Exception($"Сервер повернув помилку: {response.StatusCode} - {error}");
+                var errorContent = await response.Content.ReadAsStringAsync();
+                var errorMessage = errorContent;
+
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(errorContent);
+                    if (doc.RootElement.TryGetProperty("message", out var msg))
+                    {
+                        errorMessage = msg.GetString();
+                    }
+                }
+                catch { }
+
+                var translatedMessage = errorMessage switch
+                {
+                    "User is already a member of this group." => "Цей користувач вже є учасником групи.",
+                    "This user already has a pending invitation to this group." => "Цьому користувачу вже надіслано запрошення.",
+                    "User not found." => "Користувача з такою поштою не знайдено.",
+                    "You cannot invite yourself." => "Ви не можете запросити самого себе.",
+                    _ => errorMessage 
+                };
+                throw new Exception(translatedMessage);
             }
         }
 
@@ -326,6 +346,24 @@ namespace FinancialTracker.Web.Services
                 return new List<InvitationDto>();
             }
         }
+
+        public async Task<List<InvitationDto>> GetSentInvitationsAsync()
+{
+    await SetTokenAsync();
+    try
+    {
+        var response = await _http.GetFromJsonAsync<List<InvitationDto>>(
+            "api/v1/invitations/sent"
+        );
+
+        return response ?? new List<InvitationDto>();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Помилка при отриманні відправлених запрошень: {ex.Message}");
+        return new List<InvitationDto>();
+    }
+}
 
         public async Task<bool> RespondToInvitationAsync(Guid invitationId, bool accept)
         {

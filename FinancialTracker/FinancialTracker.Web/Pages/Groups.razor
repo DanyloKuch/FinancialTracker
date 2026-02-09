@@ -161,12 +161,17 @@
     private async Task HandleSaveGroup(GroupDto updatedGroup)
     {
         var success = await FinancialService.UpdateGroupAsync(updatedGroup);
+
         if (success)
         {
-            await LoadGroups();
-            showEditModal = false;
-            selectedGroup = null;
-            StateHasChanged(); 
+            var index = groups.FindIndex(g => g.Id == updatedGroup.Id);
+            if (index != -1)
+            {
+                groups[index].Name = updatedGroup.Name;
+                groups[index].BaseCurrency = updatedGroup.BaseCurrency;
+            }
+
+            StateHasChanged();
         }
     }
 

@@ -68,6 +68,13 @@
                     <span>🔗 Скопіювати посилання для запрошення</span>
                 </div>
 
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="error-message" style="color: #ff4444; background: rgba(255, 68, 68, 0.1); padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9rem; border: 1px solid #ff4444; text-align: center;">
+                        ⚠️ @errorMessage
+                    </div>
+                }
+
                 <div class="modal-actions">
                     <button class="btn-save" @onclick="SaveGroup">Зберегти</button>
                     <button class="btn-delete" @onclick="DeleteGroup">Видалити</button>
@@ -91,6 +98,7 @@
     [Parameter] public EventCallback<GroupDto> OnSave { get; set; }
     [Parameter] public EventCallback<string> OnDelete { get; set; }
     private string? deleteErrorMessage;
+    private string? errorMessage;
     private string editedName = "";
     private string editedCurrency = "UAH";
     private List<string> editedParticipants = new List<string>(); 
@@ -100,18 +108,22 @@
 
     protected override void OnParametersSet()
     {
-        if (IsVisible && Group != null && _lastGroupId != Group.Id)
-        {
-            editedName = Group.Name ?? "";
-            editedCurrency = !string.IsNullOrEmpty(Group.BaseCurrency) ? Group.BaseCurrency : "UAH";
-            editedParticipants = new List<string>();
-            _lastGroupId = Group.Id;
-        }
-
         if (!IsVisible)
         {
             _lastGroupId = "";
             newEmail = "";
+            errorMessage = null;
+            deleteErrorMessage = null;
+            return;
+        }
+
+        if (Group != null && _lastGroupId != Group.Id)
+        {
+            errorMessage = null; 
+            editedName = Group.Name ?? "";
+            editedCurrency = !string.IsNullOrEmpty(Group.BaseCurrency) ? Group.BaseCurrency : "UAH";
+            editedParticipants = new List<string>();
+            _lastGroupId = Group.Id;
         }
     }
 
@@ -144,12 +156,34 @@
 
     private void AddParticipant()
     {
-        if (!string.IsNullOrWhiteSpace(newEmail) && !editedParticipants.Contains(newEmail))
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(newEmail)) return;
+
+        var email = newEmail.Trim().ToLower();
+        if (!email.Contains("@"))
         {
-            editedParticipants.Add(newEmail);
-            newEmail = "";
-            StateHasChanged();
+            errorMessage = "Будь ласка, введіть коректний email.";
+            return;
         }
+
+        if (editedParticipants.Any(p => p.ToLower() == email))
+        {
+            errorMessage = "Цей email вже доданий до списку запрошень.";
+            return;
+        }
+
+        if (Group?.Members != null && Group.Members.Any(m =>
+            m.UserName != null && m.UserName.ToLower() == email))
+        {
+            errorMessage = "Цей користувач вже є учасником групи.";
+            return;
+        }
+
+        editedParticipants.Add(newEmail.Trim());
+        newEmail = ""; 
+
+        StateHasChanged(); 
     }
 
     private void RemoveParticipant(string email)
@@ -161,57 +195,60 @@
     private async Task SaveGroup()
     {
         if (Group == null) return;
+        errorMessage = null;
 
-        var groupIdCopy = Group.Id;
-        var existingParticipantsCopy = Group.ParticipantNames != null
-            ? new List<string>(Group.ParticipantNames)
-            : new List<string>();
-
+        if (!string.IsNullOrWhiteSpace(newEmail)) AddParticipant();
+        if (!string.IsNullOrEmpty(errorMessage)) return; 
         try
         {
-            if (!string.IsNullOrWhiteSpace(newEmail))
-            {
-                AddParticipant();
-            }
-
+            
             var updated = new GroupDto
                 {
-                    Id = groupIdCopy,
+                    Id = Group.Id,
                     Name = editedName,
                     BaseCurrency = editedCurrency,
                     TotalLimit = Group.TotalLimit,
-                    CreatedAt = Group.CreatedAt
+                    CreatedAt = Group.CreatedAt,
+                    Members = Group.Members
                 };
 
             await OnSave.InvokeAsync(updated);
 
-            var modalEmails = editedParticipants ?? new List<string>();
+            bool inviteErrorOccurred = false;
+            var listToInvite = editedParticipants.ToList();
 
-            var newParticipants = modalEmails
-                .Where(p => !string.IsNullOrWhiteSpace(p) && !existingParticipantsCopy.Contains(p))
-                .ToList();
-
-            if (newParticipants.Any())
+            foreach (var email in listToInvite)
             {
-                foreach (var email in newParticipants)
+                try
                 {
-                    if (string.IsNullOrEmpty(groupIdCopy)) continue;
-
-                    var inviteRequest = new InviteUserRequest
+                    await FinancialService.SendInvitationAsync(new InviteUserRequest
                         {
-                            GroupId = Guid.Parse(groupIdCopy),
+                            GroupId = Guid.Parse(Group.Id),
                             Email = email
-                        };
-
-                    await FinancialService.SendInvitationAsync(inviteRequest);
+                        });
+                    editedParticipants.Remove(email);
+                }
+                catch (Exception ex)
+                {
+                    errorMessage = ex.Message;
+                    inviteErrorOccurred = true;
+                    if (ex.Message.Contains("надіслано") || ex.Message.Contains("учасник"))
+                    {
+                        editedParticipants.Remove(email);
+                    }
                 }
             }
+            StateHasChanged();
 
-            Close();
+            if (!inviteErrorOccurred && editedParticipants.Count == 0)
+            {
+                Close();
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[DEBUG] ПОМИЛКА: {ex.Message}");
+            errorMessage = "Помилка: " + ex.Message;
+            StateHasChanged();
         }
     }
     private void HandleCurrencyChange(ChangeEventArgs e)
@@ -244,6 +281,8 @@
     {
         _lastGroupId = "";
         newEmail = "";
+        errorMessage = null;
+        deleteErrorMessage = null;
         OnClose.InvokeAsync();
     }
 }

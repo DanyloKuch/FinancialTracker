@@ -40,6 +40,13 @@
                     <span>Скопіювати посилання для запрошення</span>
                 </div>
 
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="error-message" style="color: #ff4444; background: rgba(255, 68, 68, 0.1); padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9rem; border: 1px solid #ff4444; text-align: center;">
+                        ⚠️ @errorMessage
+                    </div>
+                }
+
                 <button class="btn-save" @onclick="SaveChanges">
                     Зберегти зміни
                 </button>
@@ -55,12 +62,14 @@
     [Parameter] public EventCallback<List<string>> OnSave { get; set; }
 
     private string newEmail = "";
+    private string? errorMessage;
     private List<string> editedParticipants = new();
 
     protected override void OnParametersSet()
     {
         if (IsVisible && Group != null)
         {
+            errorMessage = null;
             editedParticipants = Group.Members
                 .Select(m => !string.IsNullOrEmpty(m.UserName) ? m.UserName : m.UserId.ToString())
                 .ToList();
@@ -74,50 +83,90 @@
 
     private void AddParticipant()
     {
-        if (!string.IsNullOrWhiteSpace(newEmail))
+        errorMessage = null;
+        if (string.IsNullOrWhiteSpace(newEmail)) return;
+
+        var email = newEmail.Trim();
+
+        if (editedParticipants.Any(p => p.Equals(email, StringComparison.OrdinalIgnoreCase)))
         {
-            var email = newEmail.Trim();
-            if (email.Contains("@") && !editedParticipants.Contains(email))
-            {
-                editedParticipants.Add(email);
-                newEmail = "";
-                StateHasChanged();
-            }
+            errorMessage = "Цей email вже доданий до списку нижче.";
+            return;
+        }
+
+        if (email.Contains("@"))
+        {
+            editedParticipants.Add(email);
+            newEmail = "";
+            StateHasChanged();
+        }
+        else
+        {
+            errorMessage = "Будь ласка, введіть коректний email.";
         }
     }
 
     private void RemoveParticipant(string email)
     {
+        errorMessage = null;
         editedParticipants = editedParticipants.Where(e => e != email).ToList();
     }
 
     private async Task SaveChanges()
     {
         if (!string.IsNullOrWhiteSpace(newEmail)) AddParticipant();
+        if (Group == null) return;
 
-        try
+        errorMessage = null;
+        var participantsToProcess = editedParticipants.ToList();
+        bool hadError = false;
+
+        foreach (var item in participantsToProcess)
         {
-            foreach (var email in editedParticipants)
+            if (item.Contains("@"))
             {
-                if (email.Contains("@"))
+                try
                 {
                     var request = new InviteUserRequest
                         {
                             GroupId = Guid.Parse(Group.Id),
-                            Email = email
+                            Email = item
                         };
+
                     await FinancialService.SendInvitationAsync(request);
+                    editedParticipants.Remove(item);
+                }
+                catch (Exception ex)
+                {
+                    if (ex.Message.Contains("вже є учасником") || ex.Message.Contains("вже надіслано"))
+                    {
+                        editedParticipants.Remove(item);
+                        errorMessage = ex.Message;
+                    }
+                    else
+                    {
+                        errorMessage = ex.Message;
+                        hadError = true;
+                    }
                 }
             }
-
-            await OnSave.InvokeAsync(editedParticipants);
         }
-        catch (Exception ex)
+
+        StateHasChanged();
+
+        if (string.IsNullOrEmpty(errorMessage) && !hadError)
         {
-            Console.WriteLine($"Помилка: {ex.Message}");
+            if (!editedParticipants.Any(e => e.Contains("@")))
+            {
+                await OnSave.InvokeAsync(editedParticipants);
+            }
         }
     }
 
-    private void Close() => OnClose.InvokeAsync();
+    private void Close()
+    {
+        errorMessage = null;
+        OnClose.InvokeAsync();
+    }
     private void CopyInviteLink() {  }
 }
