@@ -177,7 +177,7 @@
                                     <div class="trans-title">@(string.IsNullOrEmpty(tx.Comment) ? "Транзакція" : tx.Comment)</div>
                                     <div class="trans-date">@tx.CreatedAt.ToString("dd MMMM")</div>
                                 </div>
-                                <div class="trans-sum @colorClass">@sign@tx.Amount.ToString("N0")₴</div>
+                                <div class="trans-sum @colorClass">@sign@tx.Amount.ToString("N0")@GetCurrencySymbol()</div>
                             </div>
                         }
                     }
@@ -335,6 +335,7 @@
             totalWalletBalance = summary.TotalBalance;
             incomeSum = summary.TotalIncome;
             expenseSum = summary.TotalExpense;
+            
             recentTransactions = summary.RecentTransactions;
             filteredTransactionsCount = summary.RecentTransactions.Count;
         }
@@ -346,9 +347,8 @@
                 totalWalletBalance = wallet.Balance;
                 incomeSum = wallet.TotalIncome;
                 expenseSum = wallet.TotalExpense;
-                recentTransactions = summary.RecentTransactions
-                    .Where(t => t.WalletId == wallet.Id || t.TargetWalletId == wallet.Id)
-                    .ToList();
+
+                recentTransactions = wallet.LastTransactions ?? new List<TransactionDto>();
                 filteredTransactionsCount = recentTransactions.Count;
             }
         }

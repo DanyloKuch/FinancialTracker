@@ -8,8 +8,7 @@ namespace FinancialTracker.Application.DTOs
         Guid CategoryId, 
         Guid? GroupId,
         decimal Amount, 
-        TransactionType Type, 
-        decimal? ExchangeRate, 
+        TransactionType Type,
         decimal Commission, 
         string Comment,
         DateTime? CreatedAt
