@@ -9,15 +9,17 @@ namespace FinancialTracker.Domain.Models
         public decimal? TotalLimit { get; set; }
         public string BaseCurrency { get; set; }
         public Guid OwnerId { get; set; }
+        public string? OwnerEmail { get; private set; }
         public DateTime CreatedAt { get; set; }
 
         private readonly List<GroupMember> _members;
         public IReadOnlyList<GroupMember> Members => _members.AsReadOnly();
 
-        private Group(Guid id, Guid ownerId, string name, string baseCurrency, decimal? totalLimit, DateTime createdAt, List<GroupMember> members)
+        private Group(Guid id, Guid ownerId, string? ownerEmail, string name, string baseCurrency, decimal? totalLimit, DateTime createdAt, List<GroupMember> members)
         {
             Id = id;
             OwnerId = ownerId;
+            OwnerEmail = ownerEmail;
             Name = name;
             BaseCurrency = baseCurrency;
             TotalLimit = totalLimit;
@@ -25,7 +27,7 @@ namespace FinancialTracker.Domain.Models
             _members = members;
         }
 
-        public static Result<Group> Create(Guid id, Guid ownerId, string name, string baseCurrency, decimal? totalLimit, DateTime createdAt, List<GroupMember>? members = null)
+        public static Result<Group> Create(Guid id, Guid ownerId, string name, string baseCurrency, decimal? totalLimit, DateTime createdAt, List<GroupMember>? members = null, string? ownerEmail = null)
         {
             
             if (string.IsNullOrWhiteSpace(name))
@@ -39,7 +41,7 @@ namespace FinancialTracker.Domain.Models
 
             var groupMembers = members ?? new List<GroupMember>();
 
-            var group = new Group(id, ownerId, name, baseCurrency, totalLimit, createdAt, groupMembers);
+            var group = new Group(id, ownerId, ownerEmail, name, baseCurrency, totalLimit, createdAt, groupMembers);
 
             return Result<Group>.Success(group);
         }

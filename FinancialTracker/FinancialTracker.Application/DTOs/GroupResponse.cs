@@ -4,9 +4,11 @@
         Guid Id,
         string Name,
         Guid OwnerId,
+        string OwnerEmail, 
         string BaseCurrency,
         decimal? TotalLimit,
-        IReadOnlyList<GroupMemberResponse> Members, 
-        DateTime CreatedAt
+        IReadOnlyList<GroupMemberResponse> Members,
+        DateTime CreatedAt,
+        bool IsOwner 
     );
 }
