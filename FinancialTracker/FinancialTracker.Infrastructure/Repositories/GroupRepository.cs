@@ -1,5 +1,4 @@
-﻿using FinancialTracker.Domain.Enums;
-using FinancialTracker.Domain.Interfaces;
+﻿using FinancialTracker.Domain.Interfaces;
 using FinancialTracker.Domain.Models;
 using FinancialTracker.Domain.Shared;
 using FinancialTracker.Infrastructure.Entities;
@@ -15,7 +14,6 @@ namespace FinancialTracker.Infrastructure.Repositories
         {
             _context = context;
         }
-
         
         public async Task<Result<Guid>> CreateAsync(Group group, GroupMember initialMember)
         {
@@ -45,28 +43,31 @@ namespace FinancialTracker.Infrastructure.Repositories
             return Result<Guid>.Success(group.Id);
         }
 
-        
+
         public async Task<Result<Group>> GetByIdAsync(Guid groupId, Guid userId)
         {
             var entity = await _context.Groups
                 .AsNoTracking()
+                .Include(g => g.Owner) 
                 .Include(g => g.Members)
+                    .ThenInclude(m => m.User) 
                 .Where(g => g.Id == groupId && g.Members.Any(m => m.UserId == userId))
                 .FirstOrDefaultAsync();
 
             if (entity == null)
                 return Result<Group>.Failure("Group not found or you are not a member.");
 
-           
             return Result<Group>.Success(MapToDomain(entity));
         }
 
-        
+
         public async Task<Result<IReadOnlyList<Group>>> GetAllByUserIdAsync(Guid userId)
         {
             var entities = await _context.Groups
                 .AsNoTracking()
+                .Include(g => g.Owner) 
                 .Include(g => g.Members)
+                    .ThenInclude(m => m.User) 
                 .Where(g => g.Members.Any(m => m.UserId == userId))
                 .ToListAsync();
 
@@ -74,12 +75,12 @@ namespace FinancialTracker.Infrastructure.Repositories
             return Result<IReadOnlyList<Group>>.Success(result);
         }
 
-        
+
         public async Task<Result> DeleteGroupAsync(Guid groupId)
         {
             var entity = await _context.Groups.FindAsync(groupId);
             if (entity == null) return Result.Failure("Group not found");
-
+            
             _context.Groups.Remove(entity);
             await _context.SaveChangesAsync();
             return Result.Success();
@@ -121,15 +122,21 @@ namespace FinancialTracker.Infrastructure.Repositories
             return await _context.Groups.AnyAsync(g => g.Id == groupId);
         }
 
-        
+
         private Group MapToDomain(GroupEntity entity)
         {
-        
+         
             var members = entity.Members.Select(m =>
-                GroupMember.Create(m.Id, m.GroupId, m.UserId, m.Role, m.JoinedAt).Value
+                GroupMember.Create(
+                    m.Id,
+                    m.GroupId,
+                    m.UserId,
+                    m.Role,
+                    m.JoinedAt,
+                    m.User?.Email 
+                ).Value
             ).ToList();
 
-          
             return Group.Create(
                 entity.Id,
                 entity.OwnerId,
@@ -137,7 +144,8 @@ namespace FinancialTracker.Infrastructure.Repositories
                 entity.BaseCurrency,
                 entity.TotalLimit,
                 entity.CreatedAt,
-                members
+                members,
+                entity.Owner?.Email 
             ).Value;
         }
         public async Task<Result> UpdateAsync(Group group)

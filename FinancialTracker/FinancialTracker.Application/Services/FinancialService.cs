@@ -51,11 +51,29 @@ namespace FinancialTracker.Application.Services
 
             var globalStats = globalStatsResult.IsSuccess ? globalStatsResult.Value : new Dictionary<TransactionType, decimal>();
 
-            var walletDtos = wallets.Select(w => {
+            var walletDtos = new List<DashboardWalletResponse>();
+
+            foreach (var w in wallets)
+            {
                 var stats = walletStats.ContainsKey(w.Id) ? walletStats[w.Id] : (Income: 0m, Expense: 0m);
-                return new DashboardWalletResponse(
-                    w.Id, w.Name, w.Balance, w.CurrencyCode, stats.Income, stats.Expense);
-            }).ToList();
+
+                var walletTransactions = await _transactionRepo.GetByWalletIdAsync(w.Id, 10);
+
+                var walletTransactionDtos = walletTransactions.Select(t => new TransactionResponse(
+                    t.Id, t.WalletId, t.TargetWalletId, t.CategoryId, t.GroupId,
+                    t.Amount, t.Type, t.ExchangeRate, t.Commission, t.Comment, t.CreatedAt
+                )).ToList();
+
+                walletDtos.Add(new DashboardWalletResponse(
+                    w.Id,
+                    w.Name,
+                    w.Balance,
+                    w.CurrencyCode,
+                    stats.Income,
+                    stats.Expense,
+                    walletTransactionDtos
+                ));
+            }
 
             var categoryDtos = categories.Select(c => {
                 var spent = catStats.ContainsKey(c.Id) ? catStats[c.Id] : 0m;
@@ -72,28 +90,17 @@ namespace FinancialTracker.Application.Services
                 }).ToList();
             }
 
-            var transactionDtos = new List<TransactionResponse>();
+            var globalTransactionDtos = new List<TransactionResponse>();
             if (transactionsResult.IsSuccess)
             {
-                transactionDtos = transactionsResult.Value.Items.Select(t => new TransactionResponse(
-                    t.Id,
-                    t.WalletId,
-                    t.TargetWalletId,
-                    t.CategoryId,
-                    t.GroupId,
-                    t.Amount,
-                    t.Type,
-                    t.ExchangeRate,
-                    t.Commission,
-                    t.Comment,
-                    t.CreatedAt
+                globalTransactionDtos = transactionsResult.Value.Items.Select(t => new TransactionResponse(
+                    t.Id, t.WalletId, t.TargetWalletId, t.CategoryId, t.GroupId,
+                    t.Amount, t.Type, t.ExchangeRate, t.Commission, t.Comment, t.CreatedAt
                 )).ToList();
             }
 
             var rateDtos = rates.Select(r => new DashboardCurrencyRateResponse(
-                r.Code,
-                r.Rate,
-                r.UpdatedAt
+                r.Code, r.Rate, r.UpdatedAt
             )).ToList();
 
             var totalIncome = globalStats.ContainsKey(TransactionType.Income) ? globalStats[TransactionType.Income] : 0m;
@@ -107,7 +114,7 @@ namespace FinancialTracker.Application.Services
                 Wallets = walletDtos,
                 Categories = categoryDtos,
                 Groups = groupDtos,
-                RecentTransactions = transactionDtos,
+                RecentTransactions = globalTransactionDtos,
                 ExchangeRates = rateDtos
             };
 

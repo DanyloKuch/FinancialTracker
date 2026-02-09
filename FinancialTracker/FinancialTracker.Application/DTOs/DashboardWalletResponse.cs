@@ -6,6 +6,7 @@
         decimal Balance,
         string Currency,
         decimal TotalIncome,
-        decimal TotalExpense
+        decimal TotalExpense,
+        List<TransactionResponse> LastTransactions
     );
 }
