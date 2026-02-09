@@ -94,18 +94,45 @@ namespace FinancialTracker.Application.Services
 
         public async Task<List<InvitationResponse>> GetMySentInvitationsAsync()
         {
-            var invitations = await _invitationRepository.GetSentByUserIdAsync(_currentUserService.UserId);
-            return invitations.Select(i => new InvitationResponse(i.Id, i.GroupId, i.InviteeEmail, i.Status.ToString())).ToList();
+            var userId = _currentUserService.UserId;
+            var invitations = await _invitationRepository.GetSentByUserIdAsync(userId);
+
+            var myEmail = await _userRepository.GetUserEmailByIdAsync(userId);
+
+            return invitations.Select(i => new InvitationResponse(
+                i.Id,
+                i.GroupId,
+                myEmail,       
+                i.InviteeEmail, 
+                i.Status.ToString()
+            )).ToList();
         }
 
         public async Task<List<InvitationResponse>> GetMyReceivedInvitationsAsync()
         {
-            var email = await _userRepository.GetUserEmailByIdAsync(_currentUserService.UserId);
-            if (string.IsNullOrEmpty(email)) return new List<InvitationResponse>();
+            var userId = _currentUserService.UserId;
+            var myEmail = await _userRepository.GetUserEmailByIdAsync(userId);
 
-            var invitations = await _invitationRepository.GetReceivedByEmailAsync(email);
+            if (string.IsNullOrEmpty(myEmail)) return new List<InvitationResponse>();
 
-            return invitations.Select(i => new InvitationResponse(i.Id, i.GroupId, i.InviterId.ToString(), i.Status.ToString())).ToList();
+            var invitations = await _invitationRepository.GetReceivedByEmailAsync(myEmail);
+
+            var responseList = new List<InvitationResponse>();
+
+            foreach (var invitation in invitations)
+            {
+                var inviterEmail = await _userRepository.GetUserEmailByIdAsync(invitation.InviterId);
+
+                responseList.Add(new InvitationResponse(
+                    invitation.Id,
+                    invitation.GroupId,
+                    inviterEmail ?? "Unknown", 
+                    invitation.InviteeEmail,
+                    invitation.Status.ToString()
+                ));
+            }
+
+            return responseList;
         }
 
         public async Task<Result> CancelInvitationAsync(Guid invitationId)
