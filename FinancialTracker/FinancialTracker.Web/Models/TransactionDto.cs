@@ -1,4 +1,6 @@
-﻿namespace FinancialTracker.Web.Models
+﻿using System.Text.Json.Serialization;
+
+namespace FinancialTracker.Web.Models
 {
     public class TransactionDto
     {
@@ -10,6 +12,8 @@
         public Guid? CategoryId { get; set; }
         public Guid WalletId { get; set; }
         public Guid? TargetWalletId { get; set; }
+
+        [JsonPropertyName("userEmail")]
         public string UserEmail { get; set; } = string.Empty;
         public Guid? GroupId { get; set; }
     }

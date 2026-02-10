@@ -25,11 +25,28 @@
             <div class="members-list">
                 @if (currentGroup?.ParticipantNames != null)
                 {
+                    @* Ті, хто вже в групі *@
                     @foreach (var name in currentGroup.ParticipantNames)
                     {
                         <div class="member-row" style="display: flex; align-items: center; gap: 12px; width: 100%; padding-right: 10px; margin-bottom: 8px;">
                             <div class="member-avatar">@name[0].ToString().ToUpper()</div>
                             <span class="member-name" title="@name">@name</span>
+                        </div>
+                    }
+
+                    @* Ті, хто ще думає (Pending) *@
+                    @foreach (var invite in pendingInvitations)
+                    {
+                        <div class="member-row" style="display: flex; align-items: center; gap: 12px; width: 100%; padding-right: 10px; margin-bottom: 8px; opacity: 0.6;">
+                            <div class="member-avatar" style="background: #333; border: 1px dashed #666; color: #888;">
+                                @(string.IsNullOrEmpty(invite.InviteeEmail) ? "?" : invite.InviteeEmail[0].ToString().ToUpper())
+                            </div>
+                            <div style="display: flex; flex-direction: column; overflow: hidden;">
+                                <span class="member-name" style="font-size: 0.85rem; color: #bbb;">
+                                    @(invite.InviteeEmail ?? "Користувач")
+                                </span>
+                                <span style="font-size: 0.7rem; color: #cca300;">запрошення надіслано...</span>
+                            </div>
                         </div>
                     }
                 }
@@ -130,25 +147,43 @@
                     {
                         @foreach (var tx in groupTransactions)
                         {
-                            <div class="trans-item">
-                                <div class="trans-icon-circle">🛒</div>
-                                <div class="trans-details">
-                                    <div class="trans-title">
-                                        @(string.IsNullOrEmpty(tx.Comment) ? "Витрата групи" : tx.Comment)
+                            <div class="trans-item" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid #222;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div class="trans-icon-circle" style="background: #2a2a2a; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                        🛒
                                     </div>
-                                    <div class="trans-date">
-                                        @tx.CreatedAt.ToString("dd MMMM") • <b>@tx.UserEmail</b>
+                                    <div class="trans-details">
+                                        <div class="trans-title" style="color: white; font-weight: 500;">
+                                            @(string.IsNullOrEmpty(tx.Comment) ? "Витрата групи" : tx.Comment)
+                                        </div>
+                                        <div class="trans-info" style="font-size: 0.8rem; display: flex; flex-direction: column; gap: 2px;">
+                                            <span style="color: #888;">@tx.CreatedAt.ToString("dd MMMM, HH:mm")</span>
+
+                                            @* Перевірка наявності email *@
+                                            @if (!string.IsNullOrWhiteSpace(tx.UserEmail))
+                                            {
+                                                <span style="color: #00E5FF; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                                                    <span style="font-size: 0.7rem;">👤</span> @tx.UserEmail
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span style="color: #555; font-style: italic;">👤 Користувач не вказаний</span>
+                                            }
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="trans-sum text-white">
-                                    -@tx.Amount.ToString("N0") @GetCurrencySymbol(currentGroup?.BaseCurrency)
+                                <div class="trans-sum" style="color: #ff4444; font-weight: bold;">
+                                    -@tx.Amount.ToString("N2") @GetCurrencySymbol(currentGroup?.BaseCurrency)
                                 </div>
                             </div>
                         }
                     }
                     else
                     {
-                        <p class="loading-text">Транзакцій поки немає...</p>
+                        <div style="text-align: center; padding: 40px; color: #666;">
+                            Транзакцій поки немає...
+                        </div>
                     }
                 </div>
             </div>
@@ -200,6 +235,7 @@
     private decimal currentBalance = 0;
     private double progressPercentage = 0;
     private string? deleteErrorMessage;
+    private List<InvitationDto> pendingInvitations = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -237,6 +273,10 @@
                 progressPercentage = 0;
             }
         }
+        var allSentInvites = await FinancialService.GetSentInvitationsAsync();
+        pendingInvitations = allSentInvites
+            .Where(i => i.GroupId == GroupId && i.Status == "Pending")
+            .ToList();
     }
 
     private async Task HandleSaveParticipants(List<string> updatedIds)
