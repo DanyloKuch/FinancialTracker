@@ -79,6 +79,11 @@ namespace FinancialTracker.Application.Services
             var userId = _currentUserService.UserId;
             if (request.Amount <= 0) return Result<Guid>.Failure("The sum must be greater than zero..");
 
+            if (request.Type != TransactionType.Expense && request.GroupId.HasValue)
+            {
+                return Result<Guid>.Failure("A group transaction can only be an expense.");
+            }
+
             return request.Type switch
             {
                 TransactionType.Transfer => await HandleTransferAsync(request, userId),
