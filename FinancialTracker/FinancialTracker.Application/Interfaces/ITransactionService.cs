@@ -12,6 +12,6 @@ namespace FinancialTracker.Application.Services
         Task<Result<TransactionResponse>> UpdateTransaction(Guid id, UpdateTransactionRequest request);
         Task<Result> DeleteTransaction(Guid id);
         Task<Result<FinancialSummaryResponse>> GetGeneralFinancialSummary();
-        Task<Result<PagedResult<Transaction>>> GetTransactionByGroup(Guid groupId, int page, int pageSize);
+        Task<Result<PagedResult<GroupTransactionResponseDto>>> GetTransactionByGroup(Guid groupId, int page, int pageSize);
     }
 }

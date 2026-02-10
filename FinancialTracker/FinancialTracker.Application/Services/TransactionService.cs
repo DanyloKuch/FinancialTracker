@@ -361,24 +361,35 @@ namespace FinancialTracker.Application.Services
             return Result<FinancialSummaryResponse>.Success(response);
         }
 
-        public async Task<Result<PagedResult<Transaction>>> GetTransactionByGroup(Guid groupId, int page, int pageSize)
+        public async Task<Result<PagedResult<GroupTransactionResponseDto>>> GetTransactionByGroup(Guid groupId, int page, int pageSize)
         {
             var userId = _currentUserService.UserId;
 
             var isUserInGroup = await _groupRepository.IsUserInGroup(userId, groupId);
-            if (isUserInGroup.IsFailure) return Result<PagedResult<Transaction>>.Failure(isUserInGroup.Error);
+            if (isUserInGroup.IsFailure) return Result<PagedResult<GroupTransactionResponseDto>>.Failure(isUserInGroup.Error);
 
             var repoResult = await _transactionRepository.GetAllTransactionByGroup(groupId, page, pageSize);
 
             var (items, totalCount) = repoResult.Value;
 
-            var pagedResult = new PagedResult<Transaction>
+            var dto = items.Select(x => new GroupTransactionResponseDto
             {
-                Items = items,
-                TotalCount = totalCount
-            };
+                Id = x.Transaction.Id,
+                Amount = x.Transaction.Amount,
+                UserEmail = x.Email,
+                UserId = x.Transaction.UserId,
+                CreatedAt = x.Transaction.CreatedAt,
+                Comment = x.Transaction.Comment,
+                WalletId = x.Transaction.WalletId,
+                CategoryId = x.Transaction.CategoryId
+            })
+            .ToList();
 
-            return Result<PagedResult<Transaction>>.Success(pagedResult);
+            return Result<PagedResult<GroupTransactionResponseDto>>.Success(new PagedResult<GroupTransactionResponseDto>
+            {
+                Items = dto,
+                TotalCount = totalCount
+            });
         }
     }
 }
