@@ -14,7 +14,7 @@ namespace FinancialTracker.Web.Models
         public Guid? TargetWalletId { get; set; }
 
         [JsonPropertyName("userEmail")]
-        public string UserEmail { get; set; } = string.Empty;
+        public string userEmail { get; set; } = string.Empty;
         public Guid? GroupId { get; set; }
     }
 }

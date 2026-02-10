@@ -398,6 +398,20 @@ namespace FinancialTracker.Web.Services
             return response.IsSuccessStatusCode;
         }
 
+        public async Task<List<TransactionDto>> GetGroupTransactionsAsync(Guid groupId)
+        {
+            var response = await _http.GetAsync($"api/v1/Transaction/group/{groupId}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<TransactionListResponse>();
+
+                return result?.Items ?? new List<TransactionDto>();
+            }
+
+            return new List<TransactionDto>();
+        }
+
     }
 
 }
