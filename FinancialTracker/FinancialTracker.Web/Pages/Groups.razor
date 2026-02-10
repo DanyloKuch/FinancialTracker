@@ -125,7 +125,7 @@
     {
         groups = await FinancialService.GetGroupsAsync();
         var invites = await FinancialService.GetMyInvitationsAsync();
-        unreadCount = invites?.Count ?? 0;
+        unreadCount = invites?.Count(i => i.Status == "Pending") ?? 0;
         StateHasChanged();
     }
 

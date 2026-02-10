@@ -32,7 +32,10 @@
                                     <div class="invite-avatar">✉</div>
                                     <div class="invite-text">
                                         <strong>Запрошення в групу</strong>
-                                        <p>Від: @invite.Data.InviterId</p>
+
+                                        <p style="font-size: 0.85rem; color: #888; margin-top: 4px;">
+                                            Від: <span style="color: #00E5FF;">@invite.Data.InviterEmail</span>
+                                        </p>
                                     </div>
 
                                     @if (invite.ResultStatus == "accepted")
