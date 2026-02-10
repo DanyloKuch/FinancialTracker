@@ -8,45 +8,48 @@
     <div class="edit-group-overlay" @onclick="HandleOverlayClick">
         <div class="edit-group-modal" @onclick:stopPropagation>
             <div class="modal-header">
-                <h3>Редагувати групу</h3>
-                <span class="cancel-link" @onclick="Close">Скасувати</span>
+                <h3>@(IsUserOwner ? "Редагувати групу" : "Інформація про групу")</h3>
+                <span class="cancel-link" @onclick="Close">@(IsUserOwner ? "Скасувати" : "Закрити")</span>
             </div>
 
             <div class="modal-body">
                 <label>Назва групи</label>
-                <input type="text" @bind="editedName" placeholder="Змінити назву групи" />
+                <input type="text" @bind="editedName" disabled="@(!IsUserOwner)" placeholder="Назва групи" />
 
                 <label>Оберіть валюту</label>
-                <select class="currency-select" value="@editedCurrency" @onchange="HandleCurrencyChange">
+                <select class="currency-select" value="@editedCurrency" @onchange="HandleCurrencyChange" disabled="@(!IsUserOwner)">
                     <option value="UAH">₴ Українська гривня</option>
                     <option value="USD">$ Долар США</option>
                     <option value="EUR">€ Євро</option>
                 </select>
 
-                <div class="invite-section">
-                    <label>Запросити учасників</label>
-                    <span class="mail-icon">✉</span>
-                </div>
-                <div class="email-input-container">
-                    <input type="email"
-                           @bind="newEmail"
-                           @bind:event="oninput"
-                           @onkeypress="HandleEmailKeyPress"
-                           placeholder="Введіть email учасника" />
-                </div>
+                @if (IsUserOwner)
+                {
+                    <div class="invite-section">
+                        <label>Запросити учасників</label>
+                        <span class="mail-icon">✉</span>
+                    </div>
+                    <div class="email-input-container">
+                        <input type="email"
+                               @bind="newEmail"
+                               @bind:event="oninput"
+                               @onkeypress="HandleEmailKeyPress"
+                               placeholder="Введіть email учасника" />
+                    </div>
+                }
+
                 <div class="email-tags">
                     @if (Group?.Members != null)
                     {
-                        @for (int i = 0; i < Group.Members.Count; i++)
+                        @foreach (var member in Group.Members)
                         {
-                            var member = Group.Members[i];
-                            var isOwner = (i == 0);
+                            var isThisMemberOwner = member.Role == 0; // Або member.IsOwner
 
-                            <div class="email-tag existing-member @(isOwner ? "owner-tag" : "")">
-                                <span class="member-status-icon">@(isOwner ? "👑" : "👤")</span>
-                                <span>@member.UserId.ToString().Substring(0, 8)...</span>
+                            <div class="email-tag existing-member @(isThisMemberOwner ? "owner-tag" : "")">
+                                <span class="member-status-icon">@(isThisMemberOwner ? "👑" : "👤")</span>
+                                <span>@member.Email</span>
 
-                                @if (!isOwner)
+                                @if (Group.IsOwner && !isThisMemberOwner)
                                 {
                                     <span class="remove-tag" @onclick="() => KickMember(member.UserId.ToString())">×</span>
                                 }
@@ -54,19 +57,25 @@
                         }
                     }
 
-                    @foreach (var email in editedParticipants)
+                    @if (IsUserOwner)
                     {
-                        <div class="email-tag new-invite">
-                            <span class="member-status-icon">✉</span>
-                            <span>@email</span>
-                            <span class="remove-tag" @onclick="() => RemoveFromQueue(email)">×</span>
-                        </div>
+                        @foreach (var email in editedParticipants)
+                        {
+                            <div class="email-tag new-invite">
+                                <span class="member-status-icon">✉</span>
+                                <span>@email</span>
+                                <span class="remove-tag" @onclick="() => RemoveFromQueue(email)">×</span>
+                            </div>
+                        }
                     }
                 </div>
 
-                <div class="copy-link">
-                    <span>🔗 Скопіювати посилання для запрошення</span>
-                </div>
+                @if (IsUserOwner)
+                {
+                    <div class="copy-link">
+                        <span>🔗 Скопіювати посилання для запрошення</span>
+                    </div>
+                }
 
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
@@ -74,18 +83,27 @@
                         ⚠️ @errorMessage
                     </div>
                 }
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <div class="success-message" style="color: #2ecc71; background: rgba(46, 204, 113, 0.1); padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9rem; border: 1px solid #2ecc71; text-align: center;">
+                        ✅ @successMessage
+                    </div>
+                }
 
-                <div class="modal-actions">
-                    <button class="btn-save" @onclick="SaveGroup">Зберегти</button>
-                    <button class="btn-delete" @onclick="DeleteGroup">Видалити</button>
+                @if (IsUserOwner)
+                {
+                    <div class="modal-actions">
+                        <button class="btn-save" @onclick="SaveGroup">Зберегти</button>
+                        <button class="btn-delete" @onclick="DeleteGroup">Видалити</button>
 
-                    @if (!string.IsNullOrEmpty(deleteErrorMessage))
-                    {
-                        <div class="delete-error-msg">
-                            @deleteErrorMessage
-                        </div>
-                    }
-                </div>
+                        @if (!string.IsNullOrEmpty(deleteErrorMessage))
+                        {
+                            <div class="delete-error-msg">
+                                @deleteErrorMessage
+                            </div>
+                        }
+                    </div>
+                }
             </div>
         </div>
     </div>
@@ -95,6 +113,7 @@
     [Parameter] public bool IsVisible { get; set; }
     [Parameter] public GroupDto? Group { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public string? CurrentUserId { get; set; }
     [Parameter] public EventCallback<GroupDto> OnSave { get; set; }
     [Parameter] public EventCallback<string> OnDelete { get; set; }
     private string? deleteErrorMessage;
@@ -104,6 +123,8 @@
     private List<string> editedParticipants = new List<string>(); 
     private string newEmail = "";
     private string _lastGroupId = "";
+    private bool IsUserOwner => Group?.IsOwner ?? false;
+    private string? successMessage;
 
 
     protected override void OnParametersSet()
@@ -174,7 +195,7 @@
         }
 
         if (Group?.Members != null && Group.Members.Any(m =>
-            m.UserName != null && m.UserName.ToLower() == email))
+         !string.IsNullOrEmpty(m.Email) && m.Email.ToLower() == email))
         {
             errorMessage = "Цей користувач вже є учасником групи.";
             return;
@@ -196,12 +217,13 @@
     {
         if (Group == null) return;
         errorMessage = null;
+        successMessage = null; 
 
         if (!string.IsNullOrWhiteSpace(newEmail)) AddParticipant();
-        if (!string.IsNullOrEmpty(errorMessage)) return; 
+        if (!string.IsNullOrEmpty(errorMessage)) return;
+
         try
         {
-            
             var updated = new GroupDto
                 {
                     Id = Group.Id,
@@ -215,39 +237,49 @@
             await OnSave.InvokeAsync(updated);
 
             bool inviteErrorOccurred = false;
+            int successInvitesCount = 0;
             var listToInvite = editedParticipants.ToList();
 
             foreach (var email in listToInvite)
             {
                 try
                 {
-                    await FinancialService.SendInvitationAsync(new InviteUserRequest
+                    var inviteRequest = new InviteUserRequest
                         {
                             GroupId = Guid.Parse(Group.Id),
                             Email = email
-                        });
+                        };
+
+                    await FinancialService.SendInvitationAsync(inviteRequest);
                     editedParticipants.Remove(email);
+                    successInvitesCount++;
                 }
                 catch (Exception ex)
                 {
                     errorMessage = ex.Message;
                     inviteErrorOccurred = true;
-                    if (ex.Message.Contains("надіслано") || ex.Message.Contains("учасник"))
-                    {
-                        editedParticipants.Remove(email);
-                    }
+                    editedParticipants.Remove(email); 
                 }
             }
-            StateHasChanged();
-
-            if (!inviteErrorOccurred && editedParticipants.Count == 0)
+            if (!inviteErrorOccurred)
             {
-                Close();
+                if (successInvitesCount > 0)
+                {
+                    successMessage = "Зміни збережено та запрошення надіслано!";
+                    StateHasChanged();
+                    await Task.Delay(1000); 
+                }
+
+                Close(); 
+            }
+            else
+            {
+                StateHasChanged();
             }
         }
         catch (Exception ex)
         {
-            errorMessage = "Помилка: " + ex.Message;
+            errorMessage = "Помилка при збереженні: " + ex.Message;
             StateHasChanged();
         }
     }
@@ -255,22 +287,38 @@
     {
         editedCurrency = e.Value?.ToString() ?? "UAH";
     }
-
     private async Task DeleteGroup()
     {
         if (Group == null) return;
+        deleteErrorMessage = null;
+        await OnDelete.InvokeAsync(Group.Id);
+
+        if (!IsUserOwner)
+        {
+            deleteErrorMessage = "У вас немає прав для видалення цієї групи.";
+            return;
+        }
 
         deleteErrorMessage = null;
-        var result = await FinancialService.DeleteGroupAsync(Group.Id);
+        try
+        {
+            var result = await FinancialService.DeleteGroupAsync(Group.Id);
 
-        if (result.IsSuccess)
-        {
-            Close();
-            Nav.NavigateTo("/groups");
+            if (result.IsSuccess)
+            {
+                await OnDelete.InvokeAsync(Group.Id); 
+                Close();
+                Nav.NavigateTo("/groups");
+            }
+            else
+            {
+                deleteErrorMessage = result.ErrorMessage ?? "Сервер відмовив у видаленні.";
+                StateHasChanged();
+            }
         }
-        else
+        catch (Exception ex)
         {
-            deleteErrorMessage = result.ErrorMessage;
+            deleteErrorMessage = "Критична помилка: " + ex.Message;
             StateHasChanged();
         }
     }
@@ -282,6 +330,7 @@
         _lastGroupId = "";
         newEmail = "";
         errorMessage = null;
+        successMessage = null;
         deleteErrorMessage = null;
         OnClose.InvokeAsync();
     }

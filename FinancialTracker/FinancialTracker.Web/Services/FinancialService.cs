@@ -182,13 +182,18 @@ namespace FinancialTracker.Web.Services
                 {
                     return (true, null);
                 }
-                if (response.StatusCode == System.Net.HttpStatusCode.Forbidden ||
-                    response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+
+                if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
                 {
-                    return (false, "Ви не можете видалити цю групу, бо ви не є власником");
+                    return (false, "У вас немає прав власника для видалення цієї групи.");
                 }
 
-                return (false, "Сталася помилка при видаленні");
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    return (true, null); 
+                }
+
+                return (false, $"Помилка сервера: {(int)response.StatusCode}");
             }
             catch
             {
@@ -291,11 +296,13 @@ namespace FinancialTracker.Web.Services
         public async Task SendInvitationAsync(InviteUserRequest request)
         {
             await SetTokenAsync();
+
+            if (request == null) throw new ArgumentNullException(nameof(request));
             var response = await _http.PostAsJsonAsync("api/v1/invitations", request);
 
             if (!response.IsSuccessStatusCode)
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
+                var errorContent = await response.Content.ReadAsStringAsync() ?? "";
                 var errorMessage = errorContent;
 
                 try
@@ -303,7 +310,7 @@ namespace FinancialTracker.Web.Services
                     using var doc = System.Text.Json.JsonDocument.Parse(errorContent);
                     if (doc.RootElement.TryGetProperty("message", out var msg))
                     {
-                        errorMessage = msg.GetString();
+                        errorMessage = msg.GetString() ?? errorContent; ;
                     }
                 }
                 catch { }

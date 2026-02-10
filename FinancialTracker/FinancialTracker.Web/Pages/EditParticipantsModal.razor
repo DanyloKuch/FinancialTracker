@@ -40,6 +40,13 @@
                     <span>Скопіювати посилання для запрошення</span>
                 </div>
 
+                @if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="success-message" style="color: #2ecc71; background: rgba(46, 204, 113, 0.1); padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9rem; border: 1px solid #2ecc71; text-align: center;">
+        ✅ @successMessage
+    </div>
+}
+
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
                     <div class="error-message" style="color: #ff4444; background: rgba(255, 68, 68, 0.1); padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9rem; border: 1px solid #ff4444; text-align: center;">
@@ -47,9 +54,10 @@
                     </div>
                 }
 
-                <button class="btn-save" @onclick="SaveChanges">
+                <button class="btn-save" @onclick="SaveChanges" disabled="@( !HasChanges )">
                     Зберегти зміни
                 </button>
+
             </div>
         </div>
     </div>
@@ -63,18 +71,28 @@
 
     private string newEmail = "";
     private string? errorMessage;
+    private string? successMessage;
     private List<string> editedParticipants = new();
+    private HashSet<string> existingMemberEmails = new();
+    private HashSet<string> removedMembers = new(StringComparer.OrdinalIgnoreCase);
+    private bool HasChanges { get; set; } = false;
+
 
     protected override void OnParametersSet()
     {
         if (IsVisible && Group != null)
         {
             errorMessage = null;
-            editedParticipants = Group.Members
-                .Select(m => !string.IsNullOrEmpty(m.UserName) ? m.UserName : m.UserId.ToString())
-                .ToList();
+
+            existingMemberEmails = Group.Members
+                .Select(m => m.Email)
+                .Where(e => !string.IsNullOrWhiteSpace(e))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            editedParticipants = existingMemberEmails.ToList();
         }
     }
+
 
     private void HandleKeyPress(KeyboardEventArgs e)
     {
@@ -98,6 +116,7 @@
         {
             editedParticipants.Add(email);
             newEmail = "";
+            HasChanges = true;
             StateHasChanged();
         }
         else
@@ -109,8 +128,21 @@
     private void RemoveParticipant(string email)
     {
         errorMessage = null;
-        editedParticipants = editedParticipants.Where(e => e != email).ToList();
+        if (existingMemberEmails.Contains(email))
+        {
+            removedMembers.Add(email);
+        }
+
+        editedParticipants = editedParticipants
+            .Where(e => !e.Equals(email, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        HasChanges = removedMembers.Any() || editedParticipants.Except(existingMemberEmails).Any();
+
+        StateHasChanged();
     }
+
+
 
     private async Task SaveChanges()
     {
@@ -118,47 +150,65 @@
         if (Group == null) return;
 
         errorMessage = null;
-        var participantsToProcess = editedParticipants.ToList();
+        successMessage = null;
         bool hadError = false;
+        int successCount = 0;
 
-        foreach (var item in participantsToProcess)
+        var newEmailsToInvite = editedParticipants
+            .Where(e => !existingMemberEmails.Contains(e))
+            .ToList();
+
+        foreach (var email in newEmailsToInvite)
         {
-            if (item.Contains("@"))
+            try
             {
-                try
-                {
-                    var request = new InviteUserRequest
-                        {
-                            GroupId = Guid.Parse(Group.Id),
-                            Email = item
-                        };
+                await FinancialService.SendInvitationAsync(new InviteUserRequest
+                    {
+                        GroupId = Guid.Parse(Group.Id),
+                        Email = email
+                    });
 
-                    await FinancialService.SendInvitationAsync(request);
-                    editedParticipants.Remove(item);
-                }
-                catch (Exception ex)
+                successCount++;
+                editedParticipants.Remove(email);
+            }
+            catch (Exception ex)
+            {
+                hadError = true;
+                errorMessage = ex.Message;
+                if (ex.Message.Contains("вже") || ex.Message.Contains("запрошення"))
                 {
-                    if (ex.Message.Contains("вже є учасником") || ex.Message.Contains("вже надіслано"))
-                    {
-                        editedParticipants.Remove(item);
-                        errorMessage = ex.Message;
-                    }
-                    else
-                    {
-                        errorMessage = ex.Message;
-                        hadError = true;
-                    }
+                    editedParticipants.Remove(email);
                 }
             }
         }
 
-        StateHasChanged();
-
-        if (string.IsNullOrEmpty(errorMessage) && !hadError)
+        if (removedMembers.Any())
         {
-            if (!editedParticipants.Any(e => e.Contains("@")))
+            var remainingUserIds = Group.Members
+                .Where(m => editedParticipants.Contains(m.Email))
+                .Select(m => m.UserId.ToString())
+                .ToList();
+
+            await OnSave.InvokeAsync(remainingUserIds);
+            removedMembers.Clear();
+
+            if (!hadError) successMessage = "Склад учасників оновлено.";
+        }
+
+        if (successCount > 0)
+        {
+            successMessage = successCount == 1 ? "Запрошення надіслано!" : $"Надіслано запрошень: {successCount}";
+        }
+
+        StateHasChanged();
+        if (!string.IsNullOrEmpty(successMessage) || hadError)
+        {
+            HasChanges = false;
+            await Task.Delay(3000);
+
+            if (!hadError)
             {
-                await OnSave.InvokeAsync(editedParticipants);
+                await OnClose.InvokeAsync();
             }
         }
     }
@@ -166,6 +216,8 @@
     private void Close()
     {
         errorMessage = null;
+        successMessage = null;
+        removedMembers.Clear();
         OnClose.InvokeAsync();
     }
     private void CopyInviteLink() {  }

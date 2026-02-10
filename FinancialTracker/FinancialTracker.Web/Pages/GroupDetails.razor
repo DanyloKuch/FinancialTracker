@@ -9,7 +9,14 @@
     <div class="side-panel @(isSidebarOpen ? "open" : "")">
         <div class="panel-content">
             <div class="panel-header">
-                <button class="icon-btn edit-members-btn" @onclick="() => showSettings = true">⚙</button>
+                @if (isOwner)
+                {
+                    <button class="icon-btn edit-members-btn"
+                            @onclick="() => showSettings = true">
+                        ⚙
+                    </button>
+                }
+
                 <h3>Учасники групи</h3>
 
                 <button class="close-btn" @onclick="ToggleSidebar">〈</button>
@@ -20,9 +27,9 @@
                 {
                     @foreach (var name in currentGroup.ParticipantNames)
                     {
-                        <div class="member-row">
+                        <div class="member-row" style="display: flex; align-items: center; gap: 12px; width: 100%; padding-right: 10px; margin-bottom: 8px;">
                             <div class="member-avatar">@name[0].ToString().ToUpper()</div>
-                            <span class="member-name">@name</span>
+                            <span class="member-name" title="@name">@name</span>
                         </div>
                     }
                 }
@@ -66,7 +73,7 @@
         <div class="group-actions">
             <span class="edit-icon" @onclick="() => OpenEditGroup(currentGroup)">✎</span>
 
-            @if (currentGroup != null && currentGroup.OwnerId != currentUserId)
+            @if (currentGroup != null && !isOwner)
             {
                 <button class="leave-group-pill" @onclick="() => showLeaveConfirm = true">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -79,9 +86,6 @@
             }
         </div>
     </header>
-
-
-
     <div class="dashboard-content">
         <div class="balance-section">
             <span class="label">Залишок бюджету групи</span>
@@ -210,11 +214,7 @@
 
         if (currentGroup != null)
         {
-            isOwner = string.Equals(currentGroup.OwnerId?.ToString(), currentUserId, StringComparison.OrdinalIgnoreCase);
-            Console.WriteLine($"DEBUG: My ID: {currentUserId}");
-            Console.WriteLine($"DEBUG: Owner ID: {currentGroup.OwnerId}");
-            Console.WriteLine($"DEBUG: Is Owner: {isOwner}");
-
+            isOwner = currentGroup.IsOwner;
             initialBank = currentGroup.TotalLimit ?? 0;
             var result = await FinancialService.GetTransactionsAsync(page: 1, pageSize: 100);
 
@@ -253,7 +253,6 @@
             if (!success)
             {
                 allSuccess = false;
-                Console.WriteLine($"Не вдалося видалити учасника: {member.UserId}");
             }
         }
         if (allSuccess)
@@ -266,11 +265,13 @@
             await LoadData();
             StateHasChanged();
         }
+
+        if (!isOwner) return;
+
     }
 
     private void ShowAddMemberModal()
     {
-        Console.WriteLine("DEBUG: Спроба відкрити модалку учасників");
         showAddMemberModal = true;
         StateHasChanged();
     }
@@ -302,7 +303,7 @@
         {
             currentGroup = updatedGroup;
             await LoadData();
-            CloseEditModal();
+           
         }
     }
 
@@ -341,7 +342,11 @@
 
     private async Task ConfirmLeaveGroup()
     {
-        if (currentGroup == null) return;
+        if (currentGroup == null || isOwner)
+        {
+            showLeaveConfirm = false;
+            return;
+        }
 
         var success = await FinancialService.LeaveGroupAsync(currentGroup.Id);
 
@@ -352,7 +357,6 @@
         }
         else
         {
-            Console.WriteLine("Не вдалося вийти з групи");
             showLeaveConfirm = false;
         }
     }

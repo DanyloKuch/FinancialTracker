@@ -26,7 +26,7 @@
                 <div class="limit-input-container">
                     <input type="number"
                            @bind="totalLimit"
-                           placeholder="Введіть ліміт (напр. 15000)"
+                           placeholder="Введіть ліміт "
                            class="limit-input" />
                 </div>
 
@@ -57,6 +57,13 @@
                     <span>🔗 Скопіювати посилання для запрошення</span>
                 </div>
 
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <div class="success-message" style="color: #2ecc71; background: rgba(46, 204, 113, 0.1); padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9rem; border: 1px solid #2ecc71; text-align: center;">
+                        ✅ @successMessage
+                    </div>
+                }
+
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
                     <div class="error-message" style="color: #ff4444; background: rgba(255, 68, 68, 0.1); padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9rem; border: 1px solid #ff4444; text-align: center;">
@@ -82,6 +89,7 @@
     private List<string> participants = new();
     private string newEmail = "";
     private string? errorMessage;
+    private string? successMessage;
 
     private void HandleEmailKeyPress(KeyboardEventArgs e)
     {
@@ -96,7 +104,6 @@
 
         var email = newEmail.Trim();
 
-        // Перевірка на дублікат у списку тегів
         if (participants.Contains(email))
         {
             errorMessage = "Цей учасник вже доданий до списку.";
@@ -131,6 +138,7 @@
         if (!string.IsNullOrWhiteSpace(newEmail)) AddParticipant();
 
         errorMessage = null;
+        successMessage = null;
 
         try
         {
@@ -146,7 +154,8 @@
             if (createdGroup != null && !string.IsNullOrEmpty(createdGroup.Id))
             {
                 var participantsToInvite = participants.ToList();
-                bool hasCriticalError = false;
+                int successCount = 0;
+                bool hasError = false;
 
                 foreach (var email in participantsToInvite)
                 {
@@ -158,40 +167,46 @@
                                 Email = email
                             };
                         await FinancialService.SendInvitationAsync(inviteRequest);
+
                         participants.Remove(email);
+                        successCount++;
                     }
                     catch (Exception ex)
                     {
-                        if (ex.Message.Contains("вже є учасником") || ex.Message.Contains("вже надіслано"))
-                        {
-                            participants.Remove(email);
-                            errorMessage = ex.Message; 
-                        }
-                        else
-                        {
-                            errorMessage = ex.Message;
-                            hasCriticalError = true;
-                        }
+                        hasError = true;
+                        participants.Remove(email);
+                        errorMessage = ex.Message;
                     }
                 }
 
+                if (successCount > 0)
+                {
+                    successMessage = successCount == 1
+                        ? "Запрошення успішно надіслано!"
+                        : $"Групу створено та надіслано запрошень: {successCount}";
+                }
+                else if (!hasError)
+                {
+                    successMessage = "Групу успішно створено!";
+                }
+
+                await OnCreated.InvokeAsync(createdGroup);
                 StateHasChanged();
 
-                if (string.IsNullOrEmpty(errorMessage) && !hasCriticalError)
+                if (!hasError)
                 {
-                    await OnCreated.InvokeAsync(createdGroup);
-                    CloseFields();
-                    await OnClose.InvokeAsync();
+                    await Task.Delay(2000);
+                    await Close();
                 }
                 else
                 {
-                    await OnCreated.InvokeAsync(createdGroup);
+                    StateHasChanged();
                 }
             }
         }
         catch (Exception ex)
         {
-            errorMessage = ex.Message;
+            errorMessage = "Помилка при створенні: " + ex.Message;
             StateHasChanged();
         }
     }
@@ -203,6 +218,7 @@
         participants.Clear();
         newEmail = "";
         errorMessage = null;
+        successMessage = null;
     }
 
     private async Task Close()

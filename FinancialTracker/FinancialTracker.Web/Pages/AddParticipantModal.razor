@@ -40,6 +40,13 @@
                     <span>Скопіювати посилання для запрошення</span>
                 </div>
 
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <div class="success-message" style="color: #2ecc71; background: rgba(46, 204, 113, 0.1); padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9rem; border: 1px solid #2ecc71; text-align: center;">
+                        ✅ @successMessage
+                    </div>
+                }
+
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
                     <div class="error-message" style="color: #ff4444; background: rgba(255, 68, 68, 0.1); padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9rem; border: 1px solid #ff4444; text-align: center;">
@@ -64,6 +71,7 @@
 
     private string newEmail = "";
     private string? errorMessage;
+    private string? successMessage;
     private List<string> pendingEmails = new List<string>();
 
     private void HandleEmailKeyPress(KeyboardEventArgs e)
@@ -107,7 +115,9 @@
         if (!pendingEmails.Any()) return;
 
         errorMessage = null;
-        bool hasAnyError = false; 
+        successMessage = null;
+        bool hasAnyError = false;
+        int successCount = 0;
         var emailsToProcess = pendingEmails.ToList();
 
         foreach (var email in emailsToProcess)
@@ -122,25 +132,36 @@
 
                 await FinancialService.SendInvitationAsync(request);
                 pendingEmails.Remove(email);
+                successCount++;
+
+                StateHasChanged();
             }
             catch (Exception ex)
             {
-                hasAnyError = true; 
+                hasAnyError = true;
                 errorMessage = ex.Message;
 
                 if (ex.Message.Contains("вже є учасником") || ex.Message.Contains("вже надіслано"))
                 {
                     pendingEmails.Remove(email);
                 }
-
                 StateHasChanged();
             }
         }
 
-       
+        if (successCount > 0)
+        {
+            successMessage = successCount == 1
+                ? "Запрошення успішно надіслано!"
+                : $"Успішно надіслано запрошень: {successCount}";
+
+            StateHasChanged();
+        }
+
         if (!hasAnyError && !pendingEmails.Any())
         {
-            await OnClose.InvokeAsync();
+            await Task.Delay(2000);
+            Close();
         }
     }
 
@@ -148,6 +169,7 @@
     {
         newEmail = "";
         errorMessage = null;
+        successMessage = null;
         pendingEmails.Clear();
         OnClose.InvokeAsync();
     }

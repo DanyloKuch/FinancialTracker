@@ -9,6 +9,10 @@ namespace FinancialTracker.Web.Models
         [JsonPropertyName("userName")] 
         public string? UserName { get; set; }
 
+        [JsonPropertyName("email")]
+        public string Email { get; set; } = string.Empty;
+        public int Role { get; set; }
+
         [JsonPropertyName("isOwner")] 
         public bool IsOwner { get; set; }
     }
