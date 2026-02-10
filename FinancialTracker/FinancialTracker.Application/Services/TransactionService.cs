@@ -72,13 +72,18 @@ namespace FinancialTracker.Application.Services
         public async Task<Result<Guid>> CreateTransactionAsync(CreateTransactionRequest request)
         {
             var userId = _currentUserService.UserId;
-            if (request.Amount <= 0) return Result<Guid>.Failure("Сума повинна бути більшою за нуль.");
+            if (request.Amount <= 0) return Result<Guid>.Failure("The sum must be greater than zero..");
+
+            if (request.Type != TransactionType.Expense && request.GroupId.HasValue)
+            {
+                return Result<Guid>.Failure("A group transaction can only be an expense.");
+            }
 
             return request.Type switch
             {
                 TransactionType.Transfer => await HandleTransferAsync(request, userId),
                 TransactionType.Income or TransactionType.Expense => await HandleSimpleTransactionAsync(request, userId),
-                _ => Result<Guid>.Failure("Невідомий тип транзакції")
+                _ => Result<Guid>.Failure("Unknown transaction type")
             };
         }
 
