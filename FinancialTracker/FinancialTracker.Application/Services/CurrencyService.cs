@@ -44,5 +44,30 @@ namespace FinancialTracker.Application.Services
 
             if (usd != null) _lastUpdatedAt = usd.UpdatedAt;
         }
+
+
+        public decimal GetExchangeRate(string fromCode, string toCode)
+        {
+            if (fromCode == toCode) return 1m;
+
+            decimal fromRate = GetRateToUah(fromCode);
+            decimal toRate = GetRateToUah(toCode);
+
+            if (toRate == 0) return 0; 
+
+            return fromRate / toRate;
+        }
+
+
+        private decimal GetRateToUah(string code)
+        {
+            return code.ToUpper() switch
+            {
+                "UAH" => 1m,
+                "USD" => _usdRate,
+                "EUR" => _eurRate,
+                _ => throw new Exception($"Exchange rate for currency {code} not found")
+            };
+        }
     }
 }

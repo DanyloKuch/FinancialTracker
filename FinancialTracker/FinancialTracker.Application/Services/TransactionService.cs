@@ -16,12 +16,15 @@ namespace FinancialTracker.Application.Services
         public IWalletRepository _walletRepository;
         public IGroupRepository _groupRepository;
 
-        public TransactionService(IWalletRepository walletRepository, ITransactionRepository transactionRepository, ICurrentUserService currentUserService, IGroupRepository groupRepository)
+        public ICurrencyService _currencyService;
+
+        public TransactionService(IWalletRepository walletRepository, ITransactionRepository transactionRepository, ICurrentUserService currentUserService, IGroupRepository groupRepository, ICurrencyService currencyService)
         {
             _transactionRepository = transactionRepository;
             _walletRepository = walletRepository;
             _currentUserService = currentUserService;
             _groupRepository = groupRepository;
+            _currencyService = currencyService;
         }
 
         public async Task<Result<PagedResult<Transaction>>> GetAllTransactionByUser(int page, int pageSize)
@@ -74,30 +77,36 @@ namespace FinancialTracker.Application.Services
         public async Task<Result<Guid>> CreateTransactionAsync(CreateTransactionRequest request)
         {
             var userId = _currentUserService.UserId;
-            if (request.Amount <= 0) return Result<Guid>.Failure("Сума повинна бути більшою за нуль.");
+            if (request.Amount <= 0) return Result<Guid>.Failure("The sum must be greater than zero..");
 
             return request.Type switch
             {
                 TransactionType.Transfer => await HandleTransferAsync(request, userId),
                 TransactionType.Income or TransactionType.Expense => await HandleSimpleTransactionAsync(request, userId),
-                _ => Result<Guid>.Failure("Невідомий тип транзакції")
+                _ => Result<Guid>.Failure("Unknown transaction type")
             };
         }
 
         private async Task<Result<Guid>> HandleSimpleTransactionAsync(CreateTransactionRequest request, Guid userId)
         {
             var walletRes = await _walletRepository.GetByIdAsync(request.Walletid, userId);
-            if (walletRes.IsFailure) return Result<Guid>.Failure("Гаманець не знайдено");
+            if (walletRes.IsFailure) return Result<Guid>.Failure("Wallet not found");
+
+            if(request.Type == TransactionType.Expense && walletRes.Value.Balance < (request.Amount + request.Commission))
+            {
+                return Result<Guid>.Failure("Not enough funds in your wallet.");
+            }
 
             var wallet = walletRes.Value;
-            if (wallet.IsArchived) return Result<Guid>.Failure("Не можна використовувати заархівований гаманець.");
+            if (wallet.IsArchived) return Result<Guid>.Failure("You cannot use an archived wallet..");
 
             if (request.CreatedAt.HasValue && request.CreatedAt.Value.Date > DateTime.UtcNow.Date)
             {
-                return Result<Guid>.Failure("Дата транзакції не може бути в майбутньому.");
+                return Result<Guid>.Failure("Transaction date cannot be in the future.");
             }
 
             var transactionDate = request.CreatedAt ?? DateTime.UtcNow;
+            decimal exchangeRate = 1m;
 
             var transaction = Transaction.Create(
                 id: Guid.NewGuid(),
@@ -108,7 +117,7 @@ namespace FinancialTracker.Application.Services
                 groupId: request.GroupId,
                 amount: request.Amount,
                 type: request.Type,
-                exchangeRate: request.ExchangeRate,
+                exchangeRate: exchangeRate,
                 commission: request.Commission,
                 comment: request.Comment,
                 createdAt: transactionDate
@@ -129,26 +138,38 @@ namespace FinancialTracker.Application.Services
         private async Task<Result<Guid>> HandleTransferAsync(CreateTransactionRequest request, Guid userId)
         {
             if (request.TargetWalletId == null)
-                return Result<Guid>.Failure("Цільовий гаманець обов'язковий");
+                return Result<Guid>.Failure("Target wallet is required");
             if (request.Walletid == request.TargetWalletId)
-                return Result<Guid>.Failure("Не можна переказати кошти на той самий гаманець.");
+                return Result<Guid>.Failure("You cannot transfer funds to the same wallet..");
 
             var sourceResult = await _walletRepository.GetByIdAsync(request.Walletid, userId);
             var targetResult = await _walletRepository.GetByIdAsync(request.TargetWalletId.Value, userId);
 
-            if (sourceResult.IsFailure) return Result<Guid>.Failure($"Гаманець відправника: {sourceResult.Error}");
-            if (targetResult.IsFailure) return Result<Guid>.Failure($"Гаманець отримувача: {targetResult.Error}");
+            if (sourceResult.IsFailure) return Result<Guid>.Failure($"Sender's wallet: {sourceResult.Error}");
+            if (targetResult.IsFailure) return Result<Guid>.Failure($"Recipient's wallet: {targetResult.Error}");
+
 
             var sourceWallet = sourceResult.Value;
-            if (sourceWallet.IsArchived) return Result<Guid>.Failure("Гаманець відправника заархівований.");
+            
+            if (sourceWallet.IsArchived) return Result<Guid>.Failure("Sender's wallet archived.");
 
             var targetWallet = targetResult.Value;
-            if (targetWallet.IsArchived) return Result<Guid>.Failure("Гаманець отримувача заархівований.");
+            if (targetWallet.IsArchived) return Result<Guid>.Failure("Recipient's wallet archived.");
 
             if (request.CreatedAt.HasValue && request.CreatedAt.Value.Date > DateTime.UtcNow.Date)
             {
-                return Result<Guid>.Failure("Дата транзакції не може бути в майбутньому.");
+                return Result<Guid>.Failure("Transaction date cannot be in the future.");
             }
+
+            decimal exchangeRate = _currencyService.GetExchangeRate(sourceWallet.CurrencyCode, targetWallet.CurrencyCode);
+
+            decimal totalToDebit = request.Amount + request.Commission;
+            if (sourceWallet.Balance < totalToDebit)
+            {
+                return Result<Guid>.Failure($"Not enough funds. Need {totalToDebit} {sourceWallet.CurrencyCode}, but only {sourceWallet.Balance} is on the balance");
+            }
+
+            decimal amountToCredit = request.Amount * exchangeRate;
 
             var transactionDate = request.CreatedAt ?? DateTime.UtcNow;
 
@@ -161,7 +182,7 @@ namespace FinancialTracker.Application.Services
                 groupId: request.GroupId,
                 amount: request.Amount,
                 type: request.Type,
-                exchangeRate: request.ExchangeRate ?? 1m,
+                exchangeRate: exchangeRate,
                 commission: request.Commission,
                 comment: request.Comment,
                 createdAt: transactionDate
@@ -171,8 +192,8 @@ namespace FinancialTracker.Application.Services
 
             var sourceRes = sourceWallet.ApplyTransaction(request.Amount, TransactionType.Transfer, request.Commission);
             if (sourceRes.IsFailure) return Result<Guid>.Failure(sourceRes.Error); 
-            var amountForTarget = request.Amount * (request.ExchangeRate ?? 1m);
-            var targetRes = targetWallet.ApplyTransaction(amountForTarget, TransactionType.Income, 0);
+
+            var targetRes = targetWallet.ApplyTransaction(amountToCredit, TransactionType.Income, 0);
             if (targetRes.IsFailure) return Result<Guid>.Failure(targetRes.Error); 
 
             await _transactionRepository.Create(transactionResult.Value);

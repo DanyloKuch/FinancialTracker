@@ -8,5 +8,6 @@
 
        
         Task RefreshRatesAsync();
+        decimal GetExchangeRate(string fromCode, string toCode);
     }
 }

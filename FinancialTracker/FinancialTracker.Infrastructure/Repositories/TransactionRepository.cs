@@ -22,7 +22,7 @@ namespace FinancialTracker.Infrastructure.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task <Result<Transaction>> GetById(Guid userId, Guid transactionId)
+        public async Task <Result<Transaction>> GetById(Guid transactionId, Guid userId)
         {
             var result = await _context.Transactions
                 .FirstOrDefaultAsync(t => t.Id == transactionId && t.UserId == userId);
