@@ -54,7 +54,7 @@
                         </div>
 
                         <div class="group-actions">
-                            @if (!string.IsNullOrEmpty(currentUserId) && group.OwnerId == currentUserId)
+                            @if (group.IsOwner)
                             {
                                 <span class="edit-icon" @onclick="() => OpenEditGroup(group)" @onclick:stopPropagation>✎</span>
                             }
@@ -76,6 +76,7 @@
 </div>
 <EditGroup IsVisible="showEditModal"
            Group="selectedGroup"
+           CurrentUserId="@currentUserId"
            OnClose="CloseEditModal"
            OnSave="HandleSaveGroup"
            OnDelete="HandleDeleteGroup" />
@@ -107,13 +108,11 @@
         if (string.IsNullOrEmpty(currentUserId))
         {
             var auth = await AuthState;
-            var user = auth.User;
-            currentUserId = user.FindFirst("sub")?.Value
-                            ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            currentUserId = auth.User.FindFirst("sub")?.Value;
         }
 
-        Console.WriteLine($"[DEBUG] Мій ID (currentUserId): {currentUserId}");
         await LoadGroups();
+        StateHasChanged();
     }
 
     private void OpenInvites()
@@ -122,13 +121,11 @@
         StateHasChanged();
     }
 
-   
-
     private async Task LoadGroups()
     {
         groups = await FinancialService.GetGroupsAsync();
         var invites = await FinancialService.GetMyInvitationsAsync();
-        unreadCount = invites?.Count ?? 0;
+        unreadCount = invites?.Count(i => i.Status == "Pending") ?? 0;
         StateHasChanged();
     }
 
@@ -161,12 +158,17 @@
     private async Task HandleSaveGroup(GroupDto updatedGroup)
     {
         var success = await FinancialService.UpdateGroupAsync(updatedGroup);
+
         if (success)
         {
-            await LoadGroups();
-            showEditModal = false;
-            selectedGroup = null;
-            StateHasChanged(); 
+            var index = groups.FindIndex(g => g.Id == updatedGroup.Id);
+            if (index != -1)
+            {
+                groups[index].Name = updatedGroup.Name;
+                groups[index].BaseCurrency = updatedGroup.BaseCurrency;
+            }
+
+            StateHasChanged();
         }
     }
 
@@ -178,16 +180,18 @@
     private async Task HandleDeleteGroup(string groupId)
     {
         deleteErrorMessage = null;
-        var (success, message) = await FinancialService.DeleteGroupAsync(groupId);
 
-        if (success)
+        var result = await FinancialService.DeleteGroupAsync(groupId);
+
+        if (result.IsSuccess)
         {
-            await LoadGroups();
+            groups.RemoveAll(g => g.Id == groupId);
             CloseEditModal();
+            StateHasChanged();
         }
         else
         {
-            deleteErrorMessage = message;
+            deleteErrorMessage = result.ErrorMessage;
             StateHasChanged();
         }
     }

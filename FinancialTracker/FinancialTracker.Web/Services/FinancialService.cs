@@ -182,13 +182,18 @@ namespace FinancialTracker.Web.Services
                 {
                     return (true, null);
                 }
-                if (response.StatusCode == System.Net.HttpStatusCode.Forbidden ||
-                    response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+
+                if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
                 {
-                    return (false, "Ви не можете видалити цю групу, бо ви не є власником");
+                    return (false, "У вас немає прав власника для видалення цієї групи.");
                 }
 
-                return (false, "Сталася помилка при видаленні");
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    return (true, null); 
+                }
+
+                return (false, $"Помилка сервера: {(int)response.StatusCode}");
             }
             catch
             {
@@ -291,12 +296,34 @@ namespace FinancialTracker.Web.Services
         public async Task SendInvitationAsync(InviteUserRequest request)
         {
             await SetTokenAsync();
+
+            if (request == null) throw new ArgumentNullException(nameof(request));
             var response = await _http.PostAsJsonAsync("api/v1/invitations", request);
 
             if (!response.IsSuccessStatusCode)
             {
-                var error = await response.Content.ReadAsStringAsync();
-                throw new Exception($"Сервер повернув помилку: {response.StatusCode} - {error}");
+                var errorContent = await response.Content.ReadAsStringAsync() ?? "";
+                var errorMessage = errorContent;
+
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(errorContent);
+                    if (doc.RootElement.TryGetProperty("message", out var msg))
+                    {
+                        errorMessage = msg.GetString() ?? errorContent; ;
+                    }
+                }
+                catch { }
+
+                var translatedMessage = errorMessage switch
+                {
+                    "User is already a member of this group." => "Цей користувач вже є учасником групи.",
+                    "This user already has a pending invitation to this group." => "Цьому користувачу вже надіслано запрошення.",
+                    "User not found." => "Користувача з такою поштою не знайдено.",
+                    "You cannot invite yourself." => "Ви не можете запросити самого себе.",
+                    _ => errorMessage 
+                };
+                throw new Exception(translatedMessage);
             }
         }
 
@@ -327,6 +354,24 @@ namespace FinancialTracker.Web.Services
             }
         }
 
+        public async Task<List<InvitationDto>> GetSentInvitationsAsync()
+{
+    await SetTokenAsync();
+    try
+    {
+        var response = await _http.GetFromJsonAsync<List<InvitationDto>>(
+            "api/v1/invitations/sent"
+        );
+
+        return response ?? new List<InvitationDto>();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Помилка при отриманні відправлених запрошень: {ex.Message}");
+        return new List<InvitationDto>();
+    }
+}
+
         public async Task<bool> RespondToInvitationAsync(Guid invitationId, bool accept)
         {
             var request = new RespondInvitationRequest { IsAccepted = accept };
@@ -351,6 +396,20 @@ namespace FinancialTracker.Web.Services
         {
             var response = await _http.PostAsync($"/api/v1/Groups/{groupId}/leave", null);
             return response.IsSuccessStatusCode;
+        }
+
+        public async Task<List<TransactionDto>> GetGroupTransactionsAsync(Guid groupId)
+        {
+            var response = await _http.GetAsync($"api/v1/Transaction/group/{groupId}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<TransactionListResponse>();
+
+                return result?.Items ?? new List<TransactionDto>();
+            }
+
+            return new List<TransactionDto>();
         }
 
     }

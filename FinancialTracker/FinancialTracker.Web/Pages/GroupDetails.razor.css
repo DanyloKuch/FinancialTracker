@@ -374,9 +374,17 @@
     font-size: 1.1rem;
 }
 .member-name {
-    color: white;
-    font-size: 1rem;
-    font-weight: 500;
+    color: #ffffff; 
+    font-weight: 500; 
+    font-size: 0.95rem;
+    letter-spacing: 0.3px; 
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    flex: 1;
+    min-width: 0; 
 }
 
 .add-member-action {

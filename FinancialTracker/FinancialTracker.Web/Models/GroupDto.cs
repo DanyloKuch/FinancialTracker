@@ -15,8 +15,12 @@ namespace FinancialTracker.Web.Models
 
         [JsonPropertyName("members")]
         public List<GroupMemberDto> Members { get; set; } = new();
-        public List<string> ParticipantNames => Members?.Select(m => m.UserId.ToString()).ToList() ?? new List<string>();
-        public bool IsUserOwner(string userId) => OwnerId == userId;
+        public List<string> ParticipantNames => Members?
+        .Select(m => !string.IsNullOrEmpty(m.Email) ? m.Email : "U")
+        .ToList() ?? new List<string>();
+
+        [JsonPropertyName("isOwner")]
+        public bool IsOwner { get; set; }
     }
 
 

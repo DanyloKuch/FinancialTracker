@@ -133,10 +133,21 @@
     padding: 10px 16px;
     border-radius: 25px;
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
+    position: relative; 
     animation: slideIn 0.2s ease-out;
 }
+    .email-tag .member-status-icon {
+        position: absolute;
+        left: 16px;
+    }
+
+    .email-tag .remove-tag {
+        position: absolute;
+        right: 16px;
+        margin-left: 0; 
+    }
 
     .email-tag span:first-child {
         font-size: 15px;

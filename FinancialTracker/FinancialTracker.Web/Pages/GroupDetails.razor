@@ -9,7 +9,14 @@
     <div class="side-panel @(isSidebarOpen ? "open" : "")">
         <div class="panel-content">
             <div class="panel-header">
-                <button class="icon-btn edit-members-btn" @onclick="() => showSettings = true">⚙</button>
+                @if (isOwner)
+                {
+                    <button class="icon-btn edit-members-btn"
+                            @onclick="() => showSettings = true">
+                        ⚙
+                    </button>
+                }
+
                 <h3>Учасники групи</h3>
 
                 <button class="close-btn" @onclick="ToggleSidebar">〈</button>
@@ -18,11 +25,28 @@
             <div class="members-list">
                 @if (currentGroup?.ParticipantNames != null)
                 {
+                    @* Ті, хто вже в групі *@
                     @foreach (var name in currentGroup.ParticipantNames)
                     {
-                        <div class="member-row">
+                        <div class="member-row" style="display: flex; align-items: center; gap: 12px; width: 100%; padding-right: 10px; margin-bottom: 8px;">
                             <div class="member-avatar">@name[0].ToString().ToUpper()</div>
-                            <span class="member-name">@name</span>
+                            <span class="member-name" title="@name">@name</span>
+                        </div>
+                    }
+
+                    @* Ті, хто ще думає (Pending) *@
+                    @foreach (var invite in pendingInvitations)
+                    {
+                        <div class="member-row" style="display: flex; align-items: center; gap: 12px; width: 100%; padding-right: 10px; margin-bottom: 8px; opacity: 0.6;">
+                            <div class="member-avatar" style="background: #333; border: 1px dashed #666; color: #888;">
+                                @(string.IsNullOrEmpty(invite.InviteeEmail) ? "?" : invite.InviteeEmail[0].ToString().ToUpper())
+                            </div>
+                            <div style="display: flex; flex-direction: column; overflow: hidden;">
+                                <span class="member-name" style="font-size: 0.85rem; color: #bbb;">
+                                    @(invite.InviteeEmail ?? "Користувач")
+                                </span>
+                                <span style="font-size: 0.7rem; color: #cca300;">запрошення надіслано...</span>
+                            </div>
                         </div>
                     }
                 }
@@ -66,7 +90,7 @@
         <div class="group-actions">
             <span class="edit-icon" @onclick="() => OpenEditGroup(currentGroup)">✎</span>
 
-            @if (currentGroup != null && currentGroup.OwnerId != currentUserId)
+            @if (currentGroup != null && !isOwner)
             {
                 <button class="leave-group-pill" @onclick="() => showLeaveConfirm = true">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -79,9 +103,6 @@
             }
         </div>
     </header>
-
-
-
     <div class="dashboard-content">
         <div class="balance-section">
             <span class="label">Залишок бюджету групи</span>
@@ -126,25 +147,42 @@
                     {
                         @foreach (var tx in groupTransactions)
                         {
-                            <div class="trans-item">
-                                <div class="trans-icon-circle">🛒</div>
-                                <div class="trans-details">
-                                    <div class="trans-title">
-                                        @(string.IsNullOrEmpty(tx.Comment) ? "Витрата групи" : tx.Comment)
+                            <div class="trans-item" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid #222;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div class="trans-icon-circle" style="background: #2a2a2a; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                        🛒
                                     </div>
-                                    <div class="trans-date">
-                                        @tx.CreatedAt.ToString("dd MMMM") • <b>@tx.UserEmail</b>
+                                    <div class="trans-details">
+                                        <div class="trans-title" style="color: white; font-weight: 500;">
+                                            @(string.IsNullOrEmpty(tx.Comment) ? "Витрата групи" : tx.Comment)
+                                        </div>
+                                        <div class="trans-info" style="font-size: 0.8rem; display: flex; flex-direction: column; gap: 2px;">
+                                            <span style="color: #888;">@tx.CreatedAt.ToString("dd MMMM, HH:mm")</span>
+
+                                            @if (!string.IsNullOrWhiteSpace(tx.userEmail))
+                                            {
+                                                <span style="color: #00E5FF; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                                                    <span style="font-size: 0.7rem;">👤</span> @tx.userEmail
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span style="color: #555; font-style: italic;">👤 Користувач не вказаний</span>
+                                            }
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="trans-sum text-white">
-                                    -@tx.Amount.ToString("N0") @GetCurrencySymbol(currentGroup?.BaseCurrency)
+                                <div class="trans-sum" style="color: #ff4444; font-weight: bold;">
+                                    -@tx.Amount.ToString("N2") @GetCurrencySymbol(currentGroup?.BaseCurrency)
                                 </div>
                             </div>
                         }
                     }
                     else
                     {
-                        <p class="loading-text">Транзакцій поки немає...</p>
+                        <div style="text-align: center; padding: 40px; color: #666;">
+                            Транзакцій поки немає...
+                        </div>
                     }
                 </div>
             </div>
@@ -196,6 +234,7 @@
     private decimal currentBalance = 0;
     private double progressPercentage = 0;
     private string? deleteErrorMessage;
+    private List<InvitationDto> pendingInvitations = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -210,18 +249,10 @@
 
         if (currentGroup != null)
         {
-            isOwner = string.Equals(currentGroup.OwnerId?.ToString(), currentUserId, StringComparison.OrdinalIgnoreCase);
-            Console.WriteLine($"DEBUG: My ID: {currentUserId}");
-            Console.WriteLine($"DEBUG: Owner ID: {currentGroup.OwnerId}");
-            Console.WriteLine($"DEBUG: Is Owner: {isOwner}");
-
+            isOwner = currentGroup.IsOwner;
             initialBank = currentGroup.TotalLimit ?? 0;
-            var result = await FinancialService.GetTransactionsAsync(page: 1, pageSize: 100);
-
-            groupTransactions = result.Items
-                .Where(t => t.GroupId == GroupId)
-                .OrderByDescending(t => t.CreatedAt)
-                .ToList();
+            groupTransactions = await FinancialService.GetGroupTransactionsAsync(GroupId);
+            groupTransactions = groupTransactions.OrderByDescending(t => t.CreatedAt).ToList();
 
             totalSpent = groupTransactions.Where(t => t.Type == 1).Sum(t => t.Amount);
             currentBalance = initialBank - totalSpent;
@@ -237,6 +268,10 @@
                 progressPercentage = 0;
             }
         }
+        var allSentInvites = await FinancialService.GetSentInvitationsAsync();
+        pendingInvitations = allSentInvites
+            .Where(i => i.GroupId == GroupId && i.Status == "Pending")
+            .ToList();
     }
 
     private async Task HandleSaveParticipants(List<string> updatedIds)
@@ -253,7 +288,6 @@
             if (!success)
             {
                 allSuccess = false;
-                Console.WriteLine($"Не вдалося видалити учасника: {member.UserId}");
             }
         }
         if (allSuccess)
@@ -266,11 +300,13 @@
             await LoadData();
             StateHasChanged();
         }
+
+        if (!isOwner) return;
+
     }
 
     private void ShowAddMemberModal()
     {
-        Console.WriteLine("DEBUG: Спроба відкрити модалку учасників");
         showAddMemberModal = true;
         StateHasChanged();
     }
@@ -302,7 +338,7 @@
         {
             currentGroup = updatedGroup;
             await LoadData();
-            CloseEditModal();
+           
         }
     }
 
@@ -341,7 +377,11 @@
 
     private async Task ConfirmLeaveGroup()
     {
-        if (currentGroup == null) return;
+        if (currentGroup == null || isOwner)
+        {
+            showLeaveConfirm = false;
+            return;
+        }
 
         var success = await FinancialService.LeaveGroupAsync(currentGroup.Id);
 
@@ -352,7 +392,6 @@
         }
         else
         {
-            Console.WriteLine("Не вдалося вийти з групи");
             showLeaveConfirm = false;
         }
     }
