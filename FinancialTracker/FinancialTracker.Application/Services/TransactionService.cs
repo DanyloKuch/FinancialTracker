@@ -51,7 +51,7 @@ namespace FinancialTracker.Application.Services
         public async Task<Result<TransactionResponse>> GetTransactionById(Guid id)
         {
             var userId = _currentUserService.UserId;
-            var result = await _transactionRepository.GetById(userId, id);
+            var result = await _transactionRepository.GetById(id, userId);
 
             if (result.IsFailure)
                 return Result<TransactionResponse>.Failure(result.Error);
@@ -250,7 +250,7 @@ namespace FinancialTracker.Application.Services
         {
             var userId = _currentUserService.UserId;
 
-            var transactionRes = await _transactionRepository.GetById(userId, id);
+            var transactionRes = await _transactionRepository.GetById(id, userId);
             if (transactionRes.IsFailure) return Result<TransactionResponse>.Failure(transactionRes.Error);
             var transaction = transactionRes.Value;
 
