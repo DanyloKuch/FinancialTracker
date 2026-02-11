@@ -5,3 +5,4 @@
 *.suo
 
 FinancialTracker/FinancialTracker.Infrastructure/Migrations/
+\FinancialTracker\.vs\slnx.sqlite
