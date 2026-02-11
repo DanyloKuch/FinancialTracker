@@ -1,0 +1,41 @@
+﻿@using FinancialTracker.Web.Models
+@inject HttpClient Http
+
+@if (IsVisible)
+{
+    <div class="modal-overlay" @onclick="Close">
+        <div class="modal-content" @onclick:stopPropagation>
+            <div class="modal-header">
+                <h3>Редагувати категорію</h3>
+                <span class="close-btn" @onclick="Close">Скасувати</span>
+            </div>
+
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>Назва категорії</label>
+                    <input type="text" @bind="Category.Name" class="dark-input" placeholder="Наприклад: Продукти" />
+                </div>
+
+                <div class="input-group">
+                    <label>Місячний ліміт</label>
+                    <input type="number" @bind="Category.TotalLimit" class="dark-input" />
+                </div>
+
+                
+            </div>
+
+            <button class="btn-save" @onclick="HandleSave">Зберегти</button>
+        </div>
+    </div>
+}
+
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public CategoryDto Category { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnSave { get; set; }
+
+    private async Task Close() => await OnClose.InvokeAsync();
+    private async Task HandleSave() => await OnSave.InvokeAsync();
+}

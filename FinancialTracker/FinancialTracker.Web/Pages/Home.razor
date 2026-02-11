@@ -88,7 +88,9 @@
         </div>
 
         <div class="cards-row">
-            <div class="action-card expense-card">
+            <div class="action-card expense-card"
+            @onclick='() => Nav.NavigateTo("/expense-analysis")' 
+     style="cursor: pointer;">
                 <div class="card-top">
                     <button class="add-btn" @onclick='() => Nav.NavigateTo("/add-transaction/1")'>📅 + Додати</button>
                 </div>

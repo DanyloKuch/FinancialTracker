@@ -1,0 +1,82 @@
+﻿.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: #1e1e1e;
+    width: 90%;
+    max-width: 400px;
+    padding: 24px;
+    border-radius: 24px;
+    color: white;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+    .modal-header h3 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 600;
+    }
+
+.close-btn {
+    color: #888;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.input-group {
+    margin-bottom: 20px;
+}
+
+    .input-group label {
+        display: block;
+        color: #888;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+
+.dark-input {
+    background: #2a2a2a;
+    border: none;
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    color: white;
+    outline: none;
+    font-size: 16px;
+}
+
+.btn-save {
+    width: 100%;
+    background: white;
+    color: black;
+    border: none;
+    padding: 15px;
+    border-radius: 25px;
+    font-weight: bold;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: opacity 0.2s;
+}
+
+    .btn-save:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
