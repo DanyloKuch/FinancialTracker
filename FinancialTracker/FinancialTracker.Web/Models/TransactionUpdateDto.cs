@@ -10,5 +10,6 @@
         public decimal? ExchangeRate { get; set; }
         public decimal? Commission { get; set; }
         public int Type { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 }

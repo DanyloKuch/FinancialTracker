@@ -92,6 +92,21 @@
             </div>
         </div>
 
+        @if (model.type == 1)
+        {
+            <div class="form-row" style="margin-top: 10px;">
+                <div class="dropdown-container">
+                    <span class="label">Група (необов'язково)</span>
+                    <select @bind="model.groupId" class="custom-select">
+                        <option value="">Без групи</option>
+                        @foreach (var group in groups)
+                        {
+                            <option value="@group.Id">@group.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        }
         <div class="form-row" style="margin-top: 10px;">
             <div class="form-row" style="margin-top: 10px;">
                 <span class="label">Дата</span>
@@ -118,13 +133,16 @@
     private TransactionCreateDto model = new() { type = 1, commission = 0 };
     private List<WalletDto> wallets = new();
     private List<CategoryDto> categories = new();
+    private List<GroupDto> groups = new();
     private bool isSaving = false;
+
 
     protected override async Task OnInitializedAsync()
     {
         model.type = DefaultType;
         wallets = await FinancialService.GetWalletsAsync();
         categories = await FinancialService.GetCategoriesAsync();
+        groups = await FinancialService.GetGroupsAsync();
 
         if (wallets.Any()) model.walletid = wallets.First().Id;
 
@@ -138,6 +156,12 @@
     private void SetType(int newType)
     {
         model.type = newType;
+
+        if (newType != 1)
+        {
+            model.groupId = null;
+        }
+
         if (newType == 2 && model.categoryId == Guid.Empty)
         {
             var transferCat = categories.FirstOrDefault(c => c.Name.Contains("Переказ"));
