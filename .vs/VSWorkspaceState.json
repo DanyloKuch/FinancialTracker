@@ -1,6 +1,8 @@
 {
   "ExpandedNodes": [
     "",
+    "\\.github",
+    "\\.github\\workflows",
     "\\FinancialTracker",
     "\\FinancialTracker\\FinancialTracker.API",
     "\\FinancialTracker\\FinancialTracker.Application",
@@ -9,6 +11,6 @@
     "\\FinancialTracker\\FinancialTracker.Infrastructure",
     "\\FinancialTracker\\FinancialTracker.Infrastructure\\Entities"
   ],
-  "SelectedNode": "\\FinancialTracker\\FinancialTracker.Application\\FinancialTracker.Application.csproj",
+  "SelectedNode": "\\FinancialTracker\\.gitignore",
   "PreviewInSolutionExplorer": false
 }

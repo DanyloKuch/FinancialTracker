@@ -1,0 +1,66 @@
+﻿@using FinancialTracker.Web.Models
+@inject HttpClient Http
+
+@if (IsVisible)
+{
+    <div class="modal-overlay" @onclick="Close">
+        <div class="modal-content" @onclick:stopPropagation>
+            <div class="modal-header">
+                <h3>Нова категорія</h3>
+                <span class="close-btn" @onclick="Close">Скасувати</span>
+            </div>
+
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>Назва категорії</label>
+                    <input type="text"
+                           @bind="NewCategory.Name"
+                           @bind:event="oninput"
+                           class="dark-input"
+                           placeholder="Наприклад: Продукти" />
+                </div>
+
+                <div class="input-group">
+                    <label>Місячний ліміт</label>
+                    <input type="number"
+                           @bind="NewCategory.TotalLimit"
+                           @bind:event="oninput"
+                           class="dark-input" />
+                </div>
+            </div>
+
+            <button class="btn-save"
+                    @onclick="HandleSave"
+                    disabled="@(string.IsNullOrWhiteSpace(NewCategory.Name))">
+                Створити
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<CategoryDto> OnSave { get; set; }
+
+    private CategoryDto NewCategory = new() { Name = "", TotalLimit = 0, IsArchived = false };
+
+    private async Task Close()
+    {
+        NewCategory = new() { Name = "", TotalLimit = 0, IsArchived = false };
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task HandleSave()
+    {
+        var result = new CategoryDto
+            {
+                Name = NewCategory.Name,
+                TotalLimit = NewCategory.TotalLimit
+            };
+
+        await OnSave.InvokeAsync(result);
+
+        NewCategory = new() { Name = "", TotalLimit = 0, IsArchived = false };
+    }
+}
