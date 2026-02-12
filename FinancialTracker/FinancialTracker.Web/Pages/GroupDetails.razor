@@ -88,7 +88,14 @@
         </div>
 
         <div class="group-actions">
-            <span class="edit-icon" @onclick="() => OpenEditGroup(currentGroup)">✎</span>
+            @if (isOwner)
+            {
+                <span class="edit-icon" @onclick="() => OpenEditGroup(currentGroup)" title="Редагувати групу">✎</span>
+            }
+            else
+            {
+                <span class="edit-icon" @onclick="() => OpenEditGroup(currentGroup)" title="Інформація про групу">ⓘ</span>
+            }
 
             @if (currentGroup != null && !isOwner)
             {
