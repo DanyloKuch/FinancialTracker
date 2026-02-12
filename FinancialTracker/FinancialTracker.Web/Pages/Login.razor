@@ -29,27 +29,22 @@
     {
         try
         {
-            // 1. Лог перед відправкою
             Console.WriteLine($"Відправляю запит: {_loginModel.Email}");
 
             var response = await Http.PostAsJsonAsync("api/v1/auth/login", _loginModel);
 
             if (response.IsSuccessStatusCode)
             {
-                // 2. Читаємо відповідь. Використовуємо LoginResponse з атрибутами
                 var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
 
-                // ДІАГНОСТИКА: Виводимо в консоль браузера (F12) те, що отримали
                 Console.WriteLine($"Статус API: OK");
                 Console.WriteLine($"Отриманий токен (перші 10 символів): {result?.AccessToken?.Substring(0, 10) ?? "NULL"}");
 
                 if (result != null && !string.IsNullOrEmpty(result.AccessToken))
                 {
-                    // 3. Зберігаємо токен
                     await LocalStorage.SetItemAsync("authToken", result.AccessToken);
                     Console.WriteLine("Токен збережено в LocalStorage");
 
-                    // 4. Оновлюємо провайдер
                     if (AuthStateProvider is JwtAuthenticationStateProvider jwtProvider)
                     {
                         jwtProvider.NotifyUserAuthentication(result.AccessToken);
@@ -86,7 +81,6 @@
         public string Password { get; set; } = "";
     }
 
-    // ОСЬ ТУТ БУЛА ПРОБЛЕМА. Тепер ми явно вказуємо імена з JSON.
     public class LoginResponse
     {
         [JsonPropertyName("accessToken")]

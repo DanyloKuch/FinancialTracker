@@ -17,8 +17,6 @@ namespace FinancialTracker.API.Controllers
         [HttpGet("rates")]
         public IActionResult GetRates()
         {
-            // Берем данные мгновенно из оперативной памяти
-            // (так как ICurrencyService у нас будет Singleton с кэшем)
             return Ok(new
             {
                 USD = _currencyService.UsdRate,
@@ -27,7 +25,6 @@ namespace FinancialTracker.API.Controllers
             });
         }
 
-        // Опционально: Метод для принудительного обновления (для админа или тестов)
         [HttpPost("refresh")]
         public async Task<IActionResult> ForceRefresh()
         {
