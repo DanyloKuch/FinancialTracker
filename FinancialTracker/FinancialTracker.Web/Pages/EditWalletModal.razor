@@ -28,7 +28,13 @@
                     </select>
                 </div>
             </div>
-
+            <div class="input-group">
+                <label>Тип гаманця</label>
+                <select @bind="Wallet.Type" class="dark-input custom-select-big">
+                    <option value="карта">💳 Картка</option>
+                    <option value="готівка">💵 Готівка</option>
+                </select>
+            </div>
             <div class="modal-footer">
                 <button class="btn-save-main" @onclick="HandleSave">Зберегти</button>
                 <button class="btn-delete-outline" @onclick="HandleDelete" @onclick:stopPropagation>Видалити</button>
@@ -50,11 +56,14 @@
 
     private async Task HandleSave()
     {
-        Console.WriteLine($"Attempting to save wallet: {Wallet.Name}");
+        if (string.IsNullOrEmpty(Wallet.Type))
+        {
+            Wallet.Type = "карта";
+        }
+
         if (!string.IsNullOrWhiteSpace(Wallet.Name))
         {
             await OnSave.InvokeAsync(Wallet);
-            StateHasChanged();
         }
     }
 
