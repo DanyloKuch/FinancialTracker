@@ -17,8 +17,6 @@ namespace FinancialTracker.API.Controllers
             _walletService = walletService;
         }
 
-        // 1. Створити гаманець
-        // POST: api/v1/wallets
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] WalletRequest request)
         {
@@ -69,8 +67,6 @@ namespace FinancialTracker.API.Controllers
             return Ok(result.Value); 
         }
 
-        // 5. Видалити гаманець
-        // DELETE: api/v1/wallets/{id}
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id)
         {
@@ -83,7 +79,7 @@ namespace FinancialTracker.API.Controllers
 
             return NoContent();
         }
-        // GET: api/v1/wallets/{id}/details
+
         [HttpGet("{id:guid}/details")]
         public async Task<IActionResult> GetWithStats(Guid id)
         {
