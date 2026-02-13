@@ -60,12 +60,21 @@ namespace FinancialTracker.Web.Services
             await SetTokenAsync();
             try
             {
-                var response = await _http.PutAsJsonAsync($"api/v1/Wallets/{wallet.Id}", wallet);
+                var data = new Dictionary<string, object>
+        {
+            { "name", wallet.Name },
+            { "type", string.IsNullOrEmpty(wallet.Type) ? "карта" : wallet.Type },
+            { "balance", wallet.Balance },
+            { "currencyCode", wallet.CurrencyCode }
+        };
+  
+                var response = await _http.PutAsJsonAsync($"api/v1/Wallets/{wallet.Id}", data);
 
                 if (!response.IsSuccessStatusCode)
                 {
                     var error = await response.Content.ReadAsStringAsync();
                 }
+
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)

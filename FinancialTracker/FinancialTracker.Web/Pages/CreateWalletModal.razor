@@ -23,6 +23,13 @@
                         <option value="EUR">€ Євро</option>
                     </select>
                 </div>
+                <div class="input-group">
+                    <label>Тип гаманця</label>
+                    <select @bind="newWallet.Type" class="dark-input custom-select-big">
+                        <option value="карта">💳 Картка</option>
+                        <option value="готівка">💵 Готівка</option>
+                    </select>
+                </div>
 
                 <div class="input-group">
                     <label>Початковий баланс</label>
@@ -43,11 +50,15 @@
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback<WalletCreateRequest> OnSave { get; set; }
 
-    private WalletCreateRequest newWallet = new() { Balance = 0, CurrencyCode = "UAH", Type = "General" };
+    private WalletCreateRequest newWallet = new()
+    {
+        Balance = 0,
+        CurrencyCode = "UAH",
+        Type = "карта"
+    };
 
     private async Task Close()
     {
-        IsVisible = false; 
         await OnClose.InvokeAsync();
     }
 
@@ -55,10 +66,15 @@
     {
         if (!string.IsNullOrWhiteSpace(newWallet.Name))
         {
+            if (string.IsNullOrEmpty(newWallet.Type)) newWallet.Type = "карта";
+
             await OnSave.InvokeAsync(newWallet);
-            newWallet = new WalletCreateRequest { Balance = 0, CurrencyCode = "UAH", Type = "General" };
-            IsVisible = false;
+
+            newWallet = new WalletCreateRequest { Balance = 0, CurrencyCode = "UAH", Type = "карта" };
+
+            await Close();
+
             StateHasChanged();
         }
     }
-}
+    }
