@@ -23,7 +23,6 @@ namespace FinancialTracker.Domain.Models
             JoinedAt = joinedAt;
         }
 
-        // Фабричний метод
         public static Result<GroupMember> Create(Guid id, Guid groupId, Guid userId, GroupRole role, DateTime joinedAt, string? email = null)
         {
             if (userId == Guid.Empty)

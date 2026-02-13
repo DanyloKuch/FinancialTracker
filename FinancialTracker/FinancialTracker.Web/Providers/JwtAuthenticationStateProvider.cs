@@ -21,10 +21,8 @@ namespace FinancialTracker.Web.Providers
         {
             try
             {
-                // Читаємо токен
                 var token = await _localStorage.GetItemAsync<string>("authToken");
 
-                // ДЕБАГ: Пишемо в консоль браузера (F12)
                 if (string.IsNullOrWhiteSpace(token))
                 {
                     Console.WriteLine("AUTH DEBUG: Токен в LocalStorage порожній або null.");
@@ -33,15 +31,13 @@ namespace FinancialTracker.Web.Providers
 
                 Console.WriteLine($"AUTH DEBUG: Токен знайдено! Довжина: {token.Length}");
 
-                // Вставляємо токен в заголовок
                 _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-                // Створюємо юзера
                 var identity = new ClaimsIdentity(new[]
                 {
             new Claim(ClaimTypes.Name, "Користувач"),
             new Claim(ClaimTypes.AuthenticationMethod, "Bearer")
-        }, "Bearer"); // <--- ВАЖЛИВО: "Bearer" тут обов'язковий, щоб IsAuthenticated було true
+        }, "Bearer"); 
 
                 var user = new ClaimsPrincipal(identity);
                 Console.WriteLine($"AUTH DEBUG: Користувач створений. IsAuthenticated: {user.Identity.IsAuthenticated}");
@@ -57,10 +53,8 @@ namespace FinancialTracker.Web.Providers
 
         public void NotifyUserAuthentication(string token)
         {
-            // 1. Обов'язково додаємо токен в HTTP клієнт, щоб наступні запити йшли з ним
             _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            // 2. Повідомляємо Blazor, що стан змінився
             var identity = new ClaimsIdentity(new[]
             {
         new Claim(ClaimTypes.Name, "Користувач"),
